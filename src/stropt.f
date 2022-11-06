@@ -1,0 +1,151 @@
+      SUBROUTINE STROPT
+      IMPLICIT REAL*8 (A-H,O-Z)
+      REAL*8 M1,M2,M3,M,U1,U3,U13,V
+C
+      REAL*8 AMASS(3,10)
+C
+      REAL*8 RHOE,FA1,FA2,FA3,FA4,FA5,FA6,FA7,FA8,
+     1       AA1,AA3,
+     2       F1A1,F2A1,F3A1,F4A1,F1A3,F2A3,F3A3,F4A3,
+     3       F11,F1A11,F2A11,F3A11,F33,F1A33,F2A33,F3A33,
+     4       F13,F1A13,F2A13,F3A13,
+     5       F111,F1A111,F2A111,F333,F1A333,F2A333,
+     6       F113,F1A113,F2A113,F133,F1A133,F2A133,
+     7       F1111,FA1111,F3333,FA3333,F1113,FA1113,
+     8       F1333,FA1333,F1133,FA1133,
+     8       RE12 , RE32 , RHOREF , VMIN
+C
+      REAL*8 ETRIAL , RHOMAX , PNM1 , HBASE , HSTEP , EGUESS ,
+     1      PREC
+C
+      REAL*8 THRSH1 , THRSH2 , THRSH3 , THRSH4 , THRSH5 ,
+     1      THRSH6 , THRSH7 , THRSH8 , THRSH9 , THRSHX ,
+     2      VELLGT , PLANCK , AVOGNO , DEGRAD , RADDEG ,
+     3      PI
+C
+      REAL*8 B11,B13,B111,B133,B113,
+     2      B1111,B1333,B1113,B1133,
+     3      B11111,B13333,B11113,B11333,B11133,
+     4      B31,B33,B311,B333,B313,
+     5      B3111,B3333,B3113,B3133,
+     6      B31111,B33333,B31113,B31333,B31133
+C
+      REAL*8 CR1,CR3,CR11,CR33,CR13,
+     2      CR111,CR333,CR113,CR133,
+     3      CR1111,CR3333,CR1113,CR1333,CR1133
+C
+      INTEGER NFIL1 , NFIL2 , NFIL3 , NFIL4 , NFIL5 ,
+     5       NFIL6 , NFIL7 , NFIL8 , NFIL9 , NFIL10 ,
+     6       NFIL11 , NFIL12 , NFIL13 , NFIL14 , NFIL15 ,
+     7       NFIL16 , NFIL17 , NFIL18 , NFIL19 , NFIL20 ,
+     6       ITEST  , IPRINT , NSTNR , NSTNIN , IREST ,
+     7       IISOT , IQUAS , ISYMS , NISOT , NQUAS ,
+     8       NUMQUA , NOPTIT , NOPTIM , IOBSER , NOBSER,
+     9       ISOMAX , NATTS  , V0TYPE , IVAR(128) , PARMAX ,
+     1       NUMPAR , PRTINT
+C
+      INTEGER V1 ,V2, V3 , V2MXP1, V2P1,
+     1       NSTINT , NSERIN , NSERP , NSERQ , KQUA , NTEST ,
+     2       NSEPP2 , NSEQP1 , MBASIS ,
+     3       MDIM , NFSYM0, NFASY0, NFSYMJ, NFASYJ,
+     4       KSTYPA(2) , LSTYPA(2) , JMAX , V2MAX , JMAXP1
+C
+      INTEGER IQUANT(9,10)
+C
+      LOGICAL SYMM
+C
+      REAL*8 RMK(2),AAS(2)
+      INTEGER NOBAS,MBASP1,LENIW
+C
+      REAL*8 VCOEF(15)
+C
+      include 'isotop.h'
+      include 'value.h'
+      include 'lzcomp.h'
+      include 'molcul.h'
+      include 'rentel.h'
+      include 'integ.h'
+      include 'dimen.h'
+      include 'lsfit.h'
+      include 'rensys.h'
+      include 'bcoeff.h'
+      include 'crcoef.h'
+      include 'morse.h'
+      include 'equfcs.h'
+      include 'modim.h'
+C
+C
+      U1=M1*(M3+M2)*RE12*RE12
+      U3=M3*(M1+M2)*RE32*RE32
+      U13=M1*M3*RE12*RE32
+      V=M2*(M1+M2+M3)*RE12*RE32
+      CORHOE=COS(RHOE)
+      EPSC1=(U1-U3)/SQRT((U1+U3)**2-4.0E0*U13**2)
+      EPSC2=SQRT((U1+U3-2.0E0*U13)/(U1+U3+2.0E0*U13))
+C
+C     CALCULATE PURE STRETCHING POTENTIAL AT RHO = RHOE
+C     FOR SOLVING THE STRETCHING PROBLEM
+C
+      RHO=RHOE
+      EPS=0.5D0*RHO+EPSC1*ATAN(EPSC2*TAN(0.5D0*RHO))
+      CR=COS(RHO)
+      SR=SIN(RHO)
+      CSE=COS(EPS)
+      SNE=SIN(EPS)
+      CRE=CR*CSE+SR*SNE
+      SRE=SR*CSE-CR*SNE
+      EPSP=(U1+U13*CR)/(U1+U3+2.0E0*U13*CR)
+      EPSPP=U13*SR*(U1-U3)/(U1+U3+2.0E0*U13*CR)**2
+      EPSPPP=U13*(U1-U3)*(CR/(U1+U3+2.0E0*U13*CR)**2
+     1     +4.0E0*U13*SR*SR/(U1+U3+2.0E0*U13*CR)**3)
+C
+C     GENERATE THE COEFFICIENTS IN THE EXPANSIONS OF THE S I'S
+C     IN TERMS OF THE DELTA R I'S.
+C
+      CALL BCOEF
+C
+C     GENERATE THE COEFFICIENTS IN THE EXPANSIONS OF COS RHO BAR
+C     IN TERMS OF THE DELTA R I'S.
+C
+      CALL COSRB
+C
+C     GENERATE THE COEFFICIENTS IN THE EXPANSIONS OF THE
+C     POTENTIAL ENERGY IN TERMS OF THE DELTA R I'S.
+C
+      CALL VPOT ( VCOEF )
+      CALL TRRFEQ ( VCOEF )
+      W11  =  VCOEF( 4)
+      W33  =  VCOEF( 5)
+      W13  =  VCOEF( 6)
+      W111 =  VCOEF( 7)
+      W333 =  VCOEF( 8)
+      W113 =  VCOEF( 9)
+      W133 =  VCOEF(10)
+      W1111=  VCOEF(11)
+      W3333=  VCOEF(12)
+      W1113=  VCOEF(13)
+      W1333=  VCOEF(14)
+      W1133=  VCOEF(15)
+C
+      IF (IPRINT .NE. 0) THEN
+          WRITE (NFIL6,5990) 
+C
+          WRITE (NFIL6,6040) W11,W33
+          WRITE (NFIL6,6080) W13
+          WRITE (NFIL6,6120) W111,W333
+          WRITE (NFIL6,6150) W113,W133
+          WRITE (NFIL6,6180) W1111,W3333
+          WRITE (NFIL6,6200) W1113,W1333
+          WRITE (NFIL6,6220) W1133
+      ENDIF
+      RETURN
+5990  FORMAT('0',5X,12('*'),' STRETCHING EXPANSION COEFFI',
+     1      'CIENTS (CM-1) AT EQUILIBRIUM ',12('*')//)
+6040  FORMAT('0',17X,'  W11      =',F16.5,'   W33      =',F16.5)
+6080  FORMAT('0',17X,'  W13      =',F16.5)
+6120  FORMAT('0',17X,'  W111     =',F16.5,'   W333     =',F16.5)
+6150  FORMAT('0',17X,'  W113     =',F16.5,'   W133     =',F16.5)
+6180  FORMAT('0',17X,'  W1111    =',F16.5,'   W3333    =',F16.5)
+6200  FORMAT('0',17X,'  W1113    =',F16.5,'   W1333    =',F16.5)
+6220  FORMAT('0',17X,'  W1133    =',F16.5)
+      END

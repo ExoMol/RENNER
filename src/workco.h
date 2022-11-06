@@ -1,0 +1,1 @@
+      COMMON / WORKCO / WORK( LWORK )

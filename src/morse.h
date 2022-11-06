@@ -1,0 +1,1 @@
+      COMMON/MORSE/RMK,AAS

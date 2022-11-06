@@ -1,0 +1,2384 @@
+      SUBROUTINE OPTPOT
+      IMPLICIT REAL*8 (A-H,O-Z)
+C
+C SUBROUTINE SETS UP PARAMETERS FOR THE PURE BENDING POTENTIAL
+C AND DETERMINES THE EQULIBRIUM GEOMETRIES FOR THE TWO SHEETS
+C
+C THERE IS ONE POSSIBLE EXPANSION FOR V0
+C
+C  1) V0TYPE=1, V0 IS AN EIGHT ORDER EXPANSION IN 1-COS(RHO).
+C               F1A IS THEN USED AS A MOLECULAR PARAMETER, BUT
+C               RHOE IS DERIVED FROM THE VALUES OF F1A, F2A,... , F8A.
+C
+C
+      REAL*8 M1,M2,M3,M,U1,U3,U13,V,RHO,EPS,
+     1      CR,SR,CSE,SNE,
+     2      CRE,SRE,CORO,EPSP,EPSPP,EPSPPP
+C
+      REAL*8 AMASS(3,10),XIN(3),XDIR(3,3),XIN2(3),GOUT(3),
+     1       HOUT(3,3)
+C
+      REAL*8 RHOE,FA1,FA2,FA3,FA4,FA5,FA6,FA7,FA8,
+     1       AA1,AA3,
+     2       F1A1,F2A1,F3A1,F4A1,F1A3,F2A3,F3A3,F4A3,
+     3       F11,F1A11,F2A11,F3A11,F33,F1A33,F2A33,F3A33,
+     4       F13,F1A13,F2A13,F3A13,
+     5       F111,F1A111,F2A111,F333,F1A333,F2A333,
+     6       F113,F1A113,F2A113,F133,F1A133,F2A133,
+     7       F1111,FA1111,F3333,FA3333,F1113,FA1113,
+     8       F1333,FA1333,F1133,FA1133,
+     8       RE12 , RE32 , RHOREF , VMIN
+C
+      REAL*8 ETRIAL , RHOMAX , PNM1 , HBASE , HSTEP , EGUESS ,
+     1      PREC
+C
+      REAL*8 THRSH1 , THRSH2 , THRSH3 , THRSH4 , THRSH5 ,
+     1      THRSH6 , THRSH7 , THRSH8 , THRSH9 , THRSHX ,
+     2      VELLGT , PLANCK , AVOGNO , DEGRAD , RADDEG ,
+     3      PI
+C
+      REAL*8 B11,B13,B111,B133,B113,
+     2      B1111,B1333,B1113,B1133,
+     3      B11111,B13333,B11113,B11333,B11133,
+     4      B31,B33,B311,B333,B313,
+     5      B3111,B3333,B3113,B3133,
+     6      B31111,B33333,B31113,B31333,B31133
+C
+      REAL*8 CR1,CR3,CR11,CR33,CR13,
+     2      CR111,CR333,CR113,CR133,
+     3      CR1111,CR3333,CR1113,CR1333,CR1133
+C
+      INTEGER NFIL1 , NFIL2 , NFIL3 , NFIL4 , NFIL5 ,
+     5       NFIL6 , NFIL7 , NFIL8 , NFIL9 , NFIL10 ,
+     6       NFIL11 , NFIL12 , NFIL13 , NFIL14 , NFIL15 ,
+     7       NFIL16 , NFIL17 , NFIL18 , NFIL19 , NFIL20 ,
+     6       ITEST  , IPRINT , NSTNR , NSTNIN , IREST ,
+     7       IISOT , IQUAS , ISYMS , NISOT , NQUAS ,
+     8       NUMQUA , NOPTIT , NOPTIM , IOBSER , NOBSER,
+     9       ISOMAX , NATTS  , V0TYPE , IVAR(128) , PARMAX ,
+     1       NUMPAR , PRTINT
+C
+      INTEGER V1 ,V2, V3 , V2MXP1, V2P1,
+     1       NSTINT , NSERIN , NSERP , NSERQ , KQUA , NTEST ,
+     2       NSEPP2 , NSEQP1 , MBASIS ,
+     3       MDIM , NFSYM0, NFASY0, NFSYMJ, NFASYJ,
+     4       KSTYPA(2) , LSTYPA(2) , JMAX , V2MAX , JMAXP1
+C
+      INTEGER IQUANT(9,10)
+C
+      LOGICAL SYMM
+C
+      REAL*8 RMK(2),AAS(2)
+      INTEGER NOBAS,MBASP1,LENIW
+      REAL*8 VVAL,DVDR,RHO0,RHOEDG
+      INTEGER NCNT
+      COMMON /ISOTOP/ IQUANT,AMASS
+C
+      COMMON /VALUES/ RHO,EPS,EPSP,EPSPP,EPSPPP,
+     1               CR,SR,CSE,SNE,CRE,SRE,CORO
+C
+C
+      COMMON /MOLCUL/ RHOE,FA1,FA2,FA3,FA4,FA5,FA6,FA7,FA8,
+     1               AA1,AA3,
+     1               F11,F33,F13,F111,F333,F113,F133,
+     1               F1111,F3333,F1113,F1333,F1133,
+     2               F1,F1A1,F2A1,F3A1,F4A1,F3,F1A3,F2A3,F3A3,F4A3,
+     3               F1A11,F2A11,F3A11,F1A33,F2A33,F3A33,
+     4               F1A13,F2A13,F3A13,
+     5               F1A111,F2A111,F1A333,F2A333,
+     6               F1A113,F2A113,F1A133,F2A133,
+     7               FA1111,FA3333,FA1113,
+     8               FA1333,FA1133, R12RF1, R32RF1, R12RF2, R32RF2,
+     8               RE12 , RE32 , M1 , M2 , M3 , M ,
+     9               U1 , U3 , U13 , V ,
+     1               SYMM
+      COMMON /RENTEL/G1,G3,G11,G33,G13,G111,G333,G113,G133,
+     1               G1111,G3333,G1113,G1333,G1133,
+     2               GA1,GA2,GA3,GA4,GA5,GA6,GA7,GA8,
+     2               G1A1,G2A1,G3A1,G4A1,G1A3,G2A3,G3A3,G4A3,
+     3               G1A11,G2A11,G3A11,G1A33,G2A33,G3A33,
+     4               G1A13,G2A13,G3A13,
+     5               G1A111,G2A111,G1A333,G2A333,
+     6               G1A113,G2A113,G1A133,G2A133,
+     7               GA1111,GA3333,GA1113,
+     8               GA1333,GA1133,
+     1               HA1,HA2,HA3,HA4,HA5,HA6,HA7,HA8,
+     2               H1A1,H2A1,H3A1,H4A1,H1A3,H2A3,H3A3,H4A3,
+     3               H1A11,H2A11,H3A11,H1A33,H2A33,H3A33,
+     4               H1A13,H2A13,H3A13,
+     5               H1A111,H2A111,H1A333,H2A333,
+     6               H1A113,H2A113,H1A133,H2A133,
+     7               HA1111,HA3333,HA1113,
+     8               HA1333,HA1133
+c
+      COMMON /INTEG/  ETRIAL , RHOMAX , PNM1 , HBASE , HSTEP , EGUESS ,
+     1               RHOREF , VMINS1 , VMINS2 , ZTRIAL(2) , V0TYPE ,
+     1               NSTINT , NSERIN , NSERP , NSERQ , KQUA , NTEST ,
+     2               NSEPP2 , NSEQP1 , KSTYPA , LSTYPA
+C
+      COMMON /DIMEN/ NSURF,  MBASIS ,  V2MAX  , V2MXP1 ,
+     1               JMAX   , JMAXP1 , MDIM   , NFSYM0 , NFASY0 ,
+     2               NFSYMJ , NFASYJ , NFINTA
+C
+      COMMON /LSFIT/  PARMAX , NUMPAR , ISOMAX , IVAR
+C
+      include 'rensys.h'
+C
+      COMMON/BCOEFF/
+     1      B11,B13,B111,B133,B113,
+     2      B1111,B1333,B1113,B1133,
+     3      B11111,B13333,B11113,B11333,B11133,
+     4      B31,B33,B311,B333,B313,
+     5      B3111,B3333,B3113,B3133,
+     6      B31111,B33333,B31113,B31333,B31133
+C
+      COMMON/CRCOEF/
+     1      CR1,CR3,CR11,CR33,CR13,
+     2      CR111,CR333,CR113,CR133,
+     3      CR1111,CR3333,CR1113,CR1333,CR1133
+C
+C
+      COMMON/MORSE/RMK,AAS
+      COMMON/MODIM/NOBAS,MBASP1,LENIW
+C
+      RHOREF=0.0D+00
+C
+C FIND RHOE
+C
+      VMIN=0.0D+00
+      MINK=0
+      DO 10 I=1,NSTINT
+      RHO=DFLOAT(I)*HSTEP
+      CORO=1.0D+00-COS(RHO)
+      VVAL=(((((((FA8*CORO+FA7)*CORO+
+     1    FA6)*CORO+FA5)*CORO+FA4)*CORO
+     2    +FA3)*CORO+FA2)*CORO+FA1)*CORO
+      IF (VMIN .GT. VVAL) THEN
+          VMIN=VVAL
+          MINK=I
+      ENDIF
+10    CONTINUE
+      IF (MINK .EQ. NSTINT) GOTO 9010
+      IF (MINK .EQ. 0) THEN
+          RHOE=0.0D+00
+          VMIN=0.0D+00
+          GOTO 40
+      ENDIF
+      RHO=DFLOAT(MINK-1)*HSTEP
+      CORO=1.0D+00-COS(RHO)
+      SR=SIN(RHO)
+      DVDR1=(((((((8.0D+00*FA8*CORO+7.0D+00*FA7)*CORO+
+     1    6.0D+00*FA6)*CORO+5.0D+00*FA5)*CORO+4.0D+00*FA4)*CORO
+     2    +3.0D+00*FA3)*CORO+2.0D+00*FA2)*CORO+FA1)*SR
+      RHO=DFLOAT(MINK+1)*HSTEP
+      CORO=1.0D+00-COS(RHO)
+      SR=SIN(RHO)
+      DVDR2=(((((((8.0D+00*FA8*CORO+7.0D+00*FA7)*CORO+
+     1    6.0D+00*FA6)*CORO+5.0D+00*FA5)*CORO+4.0D+00*FA4)*CORO
+     2    +3.0D+00*FA3)*CORO+2.0D+00*FA2)*CORO+FA1)*SR
+      RHOE=(DFLOAT(MINK-1)-2.0D+00*DVDR1/(DVDR2-DVDR1))*HSTEP
+      CORO=1.0D+00-COS(RHOE)
+      VMIN=(((((((FA8*CORO+FA7)*CORO+
+     1    FA6)*CORO+FA5)*CORO+FA4)*CORO
+     2    +FA3)*CORO+FA2)*CORO+FA1)*CORO
+40    RHOEST=RHOE
+      RHOE=0.0D+00
+      DO 33 I=1,3
+      DO 32 J=1,3
+32    XDIR(I,J)=0.0D+00
+33    XDIR(I,I)=1.0D+00
+      IF (SYMM) THEN
+           XIN(1)=RE12
+           XIN(2)=RHOEST
+           CALL POWEL1(XIN,XDIR,2,3,0.1D-06,ITER,FRET)
+           XIN2(1)=XIN(1)
+           XIN2(2)=XIN(1)
+           XIN2(3)=XIN(2)
+      ELSE
+           XIN(1)=RE12
+           XIN(2)=RE32
+           XIN(3)=RHOEST
+           CALL POWEL2(XIN,XDIR,3,3,0.1D-06,ITER,FRET)
+           XIN2(1)=XIN(1)
+           XIN2(2)=XIN(2)
+           XIN2(3)=XIN(3)
+      ENDIF
+      ITER=0
+50    CALL CGRAD ( XIN2 , GOUT , HOUT )
+      IF (GOUT(1)**2+GOUT(2)**2+GOUT(3)**2 .LT. 1.0D-06) GOTO 70
+      IF (ITER .GT. 30) GOTO 9020
+      CALL SOLVEZ (HOUT,3,3,3,PREC,DET,TEST)
+C
+      IF (TEST.NE.0.0D0) THEN
+          WRITE(NFIL6,2500) TEST
+2500      FORMAT('0>>>> SOLVEZ FAILED, TEST = ',D11.5)
+      ENDIF
+C
+      DO 60 JJ=1,3
+      POM=0.0D+00
+      DO 55 KK=1,3
+55    POM=POM-HOUT(JJ,KK)*GOUT(KK)
+60    XIN(JJ)=POM
+      IF (SYMM) THEN
+           XIN2(1)=XIN(1)+XIN2(1)
+           XIN2(2)=XIN2(1)
+           XIN2(3)=XIN(3)+XIN2(3)
+      ELSE
+           XIN2(1)=XIN(1)+XIN2(1)
+           XIN2(2)=XIN(2)+XIN2(2)
+           XIN2(3)=XIN(3)+XIN2(3)
+      ENDIF
+      ITER=ITER+1
+      GOTO 50
+70    CALL CGRAD ( XIN2 , GOUT , HOUT )
+      IF (SYMM) THEN
+           XIN(1)=XIN2(1)
+           XIN(2)=XIN2(3)
+           FRET=FNC1(XIN)
+      ELSE
+           XIN(1)=XIN2(1)
+           XIN(2)=XIN2(2)
+           XIN(3)=XIN2(3)
+           FRET=FNC2(XIN)
+      ENDIF
+C
+      IF (IPRINT .NE. 0) THEN
+           WRITE (NFIL6,8000) 
+           IF (SYMM) THEN
+                RHOGRA=XIN(2)*1.8E+02/PI
+                WRITE (NFIL6,8010) ITER,XIN(1),XIN(1),
+     .                             RHOGRA,FRET,
+     .                             (GOUT(III),III=1,3)
+           ELSE
+                RHOGRA=XIN(3)*1.8E+02/PI
+                WRITE (NFIL6,8010) ITER,(XIN(III),III=1,2),
+     .                             RHOGRA,FRET,
+     .                             (GOUT(III),III=1,3)
+           ENDIF
+      ENDIF
+      IF (NSURF .EQ. 1) THEN
+           IF (SYMM) THEN
+                R12RF1 = XIN(1)
+                R32RF1 = XIN(1)
+                RHOE=XIN(2)
+           ELSE
+                R12RF1 = XIN(1)
+                R32RF1 = XIN(2)
+                RHOE=XIN(3)
+           ENDIF
+           VMINS1=FRET
+      ELSE
+           IF (SYMM) THEN
+                R12RF2 = XIN(1)
+                R32RF2 = XIN(1)
+                RHOE=XIN(2)
+           ELSE
+                R12RF2 = XIN(1)
+                R32RF2 = XIN(2)
+                RHOE=XIN(3)
+           ENDIF
+           VMINS2=FRET
+      ENDIF
+      RETURN
+8000  FORMAT('0',5X,12('*'),' EQUILIBRIUM GEOMETRY ',
+     2      12('*')//)
+8010  FORMAT('0RENTEL.OPT.INF    AFTER ',
+     2      I2,' ITERATIONS:',/,
+     2  '0',23X,' RE12      =  ',F16.5,' ANGSTROM',/,
+     2      24X,' RE32      =  ',F16.5,' ANGSTROM',/,
+     2      24X,' RHOE      =  ',F16.5,' DEGREES',/,
+     2      24X,' VMIN      =  ',F16.5,' CM-1',/,
+     2       '0                  GRADIENT IN THIS POINT:',/,
+     2  '0',23X,' DV/DR12   =  ',E16.5,' CM-1/ANGSTROM',/,
+     2      24X,' DV/DR32   =  ',E16.5,' CM-1/ANGSTROM',/,
+     2      24X,' DV/DRHO   =  ',E16.5,' CM-1/RAD',//)
+9010  WRITE (NFIL6,9012)
+9012  FORMAT(1H0,' RENTEL.OPT.ERR  BENDING POTENTIAL ENERGY HAS',
+     1      ' NO MINIMUM.')
+      STOP
+9020  WRITE (NFIL6,9014)
+9014  FORMAT(1H0,' RENTEL.OPT.ERR  MORE THAN 30 ITERATIONS NEED',
+     1      'ED TO FIND THE EQUILIBRIUM GEOMETRY.')
+      STOP
+      END
+C
+C
+      DOUBLE PRECISION FUNCTION FNC1(XIN)
+      IMPLICIT REAL*8 (A-H,O-Z)
+      REAL*8 XIN(3),M1,M2,M3,M
+      LOGICAL SYMM
+C
+C
+      include 'rensys.h'
+      COMMON /MOLCUL/ RHOE,FA1,FA2,FA3,FA4,FA5,FA6,FA7,FA8,
+     1               AA1,AA3,
+     1               F11,F33,F13,F111,F333,F113,F133,
+     1               F1111,F3333,F1113,F1333,F1133,
+     2               F1,F1A1,F2A1,F3A1,F4A1,F3,F1A3,F2A3,F3A3,F4A3,
+     3               F1A11,F2A11,F3A11,F1A33,F2A33,F3A33,
+     4               F1A13,F2A13,F3A13,
+     5               F1A111,F2A111,F1A333,F2A333,
+     6               F1A113,F2A113,F1A133,F2A133,
+     7               FA1111,FA3333,FA1113,
+     8               FA1333,FA1133, R12RF1, R32RF1, R12RF2, R32RF2,
+     8               RE12 , RE32 , M1 , M2 , M3 , M ,
+     9               U1 , U3 , U13 , V ,
+     1               SYMM
+C
+      R12 = XIN(1)
+      R32 = XIN(1)
+      RHO = XIN(2)
+C
+      IF (R12 .LT. RE12/2.0D+00) THEN
+                FNC1=1.0D+50
+                RETURN
+      ENDIF
+C
+      IF (RHO .LT. 0.0D+00 .OR. RHO .GT. PI) THEN
+                FNC1=1.0D+50
+                RETURN
+      ENDIF
+C
+      CORO=1.0-COS(RHO)
+      Y1=1.0D+00-EXP(-AA1*(R12-RE12))
+      Y3=1.0D+00-EXP(-AA3*(R32-RE32))
+C
+C CALCULATE POTENTIAL ENERGY FUNCTION VALUES
+C
+      V0=   FA1*CORO+FA2*CORO**2+FA3*CORO**3+FA4*CORO**4+FA5*CORO**5
+     1    +FA6*CORO**6+FA7*CORO**7+FA8*CORO**8
+      FE1= F1+F1A1*CORO+F2A1*CORO**2+F3A1*CORO**3+F4A1*CORO**4
+      FE3= F3+F1A3*CORO+F2A3*CORO**2+F3A3*CORO**3+F4A3*CORO**4
+      FE11= F11+F1A11*CORO+F2A11*CORO**2+F3A11*CORO**3
+      FE33= F33+F1A33*CORO+F2A33*CORO**2+F3A33*CORO**3
+      FE13= F13+F1A13*CORO+F2A13*CORO**2+F3A13*CORO**3
+      FE111= F111+F1A111*CORO+F2A111*CORO**2
+      FE333= F333+F1A333*CORO+F2A333*CORO**2
+      FE113= F113+F1A113*CORO+F2A113*CORO**2
+      FE133= F133+F1A133*CORO+F2A133*CORO**2
+      FE1111= F1111+FA1111*CORO
+      FE3333= F3333+FA3333*CORO
+      FE1113= F1113+FA1113*CORO
+      FE1333= F1333+FA1333*CORO
+      FE1133= F1133+FA1133*CORO
+      VAL   =  V0+FE1*Y1+FE3*Y3
+     1         +FE11*Y1**2+FE33*Y3**2+FE13*Y1*Y3
+     2         +FE111*Y1**3+FE333*Y3**3+FE113*Y1**2*Y3
+     3         +FE133*Y1*Y3**2
+     4         +FE1111*Y1**4+FE3333*Y3**4+FE1113*Y1**3*Y3
+     5         +FE1333*Y1*Y3**3+FE1133*Y1**2*Y3**2
+C
+      FNC1=VAL
+      RETURN
+      END
+C
+C
+      DOUBLE PRECISION FUNCTION FNC2(XIN)
+      IMPLICIT REAL*8 (A-H,O-Z)
+      REAL*8 XIN(3),M1,M2,M3,M
+      LOGICAL SYMM
+C
+C
+      include 'rensys.h'
+      COMMON /MOLCUL/ RHOE,FA1,FA2,FA3,FA4,FA5,FA6,FA7,FA8,
+     1               AA1,AA3,
+     1               F11,F33,F13,F111,F333,F113,F133,
+     1               F1111,F3333,F1113,F1333,F1133,
+     2               F1,F1A1,F2A1,F3A1,F4A1,F3,F1A3,F2A3,F3A3,F4A3,
+     3               F1A11,F2A11,F3A11,F1A33,F2A33,F3A33,
+     4               F1A13,F2A13,F3A13,
+     5               F1A111,F2A111,F1A333,F2A333,
+     6               F1A113,F2A113,F1A133,F2A133,
+     7               FA1111,FA3333,FA1113,
+     8               FA1333,FA1133, R12RF1, R32RF1, R12RF2, R32RF2,
+     8               RE12 , RE32 , M1 , M2 , M3 , M ,
+     9               U1 , U3 , U13 , V ,
+     1               SYMM
+C
+      R12 = XIN(1)
+      R32 = XIN(2)
+      RHO = XIN(3)
+      IF (R12 .LT. RE12/2.0D+00 .OR. R32 .LT. RE32/2.0D+00) THEN
+                FNC2=1.0D+50
+                RETURN
+      ENDIF
+C
+      IF (RHO .LT. 0.0D+00 .OR. RHO .GT. PI) THEN
+                FNC2=1.0D+50
+                RETURN
+      ENDIF
+C
+C
+      CORO=1.0-COS(RHO)
+      Y1=1.0D+00-EXP(-AA1*(R12-RE12))
+      Y3=1.0D+00-EXP(-AA3*(R32-RE32))
+C
+C CALCULATE POTENTIAL ENERGY FUNCTION VALUES
+C
+      V0=   FA1*CORO+FA2*CORO**2+FA3*CORO**3+FA4*CORO**4+FA5*CORO**5
+     1    +FA6*CORO**6+FA7*CORO**7+FA8*CORO**8
+      FE1= F1+F1A1*CORO+F2A1*CORO**2+F3A1*CORO**3+F4A1*CORO**4
+      FE3= F3+F1A3*CORO+F2A3*CORO**2+F3A3*CORO**3+F4A3*CORO**4
+      FE11= F11+F1A11*CORO+F2A11*CORO**2+F3A11*CORO**3
+      FE33= F33+F1A33*CORO+F2A33*CORO**2+F3A33*CORO**3
+      FE13= F13+F1A13*CORO+F2A13*CORO**2+F3A13*CORO**3
+      FE111= F111+F1A111*CORO+F2A111*CORO**2
+      FE333= F333+F1A333*CORO+F2A333*CORO**2
+      FE113= F113+F1A113*CORO+F2A113*CORO**2
+      FE133= F133+F1A133*CORO+F2A133*CORO**2
+      FE1111= F1111+FA1111*CORO
+      FE3333= F3333+FA3333*CORO
+      FE1113= F1113+FA1113*CORO
+      FE1333= F1333+FA1333*CORO
+      FE1133= F1133+FA1133*CORO
+      VAL  =   V0+FE1*Y1+FE3*Y3
+     1         +FE11*Y1**2+FE33*Y3**2+FE13*Y1*Y3
+     2         +FE111*Y1**3+FE333*Y3**3+FE113*Y1**2*Y3
+     3         +FE133*Y1*Y3**2
+     4         +FE1111*Y1**4+FE3333*Y3**4+FE1113*Y1**3*Y3
+     5         +FE1333*Y1*Y3**3+FE1133*Y1**2*Y3**2
+C
+      FNC2=VAL
+      RETURN
+      END
+C
+C
+      DOUBLE PRECISION FUNCTION BRENT(AX,BX,CX,F,TOL,XMIN)
+      IMPLICIT REAL*8 (A-H,O-Z)
+      PARAMETER (ITMAX=100,CGOLD=.3819660,ZEPS=1.0D-10)
+C
+      INTEGER PRTINT
+      include 'rensys.h'
+C
+      A=MIN(AX,CX)
+      B=MAX(AX,CX)
+      V=BX
+      W=V
+      X=V
+      E=0.
+      FX=F(X)
+      FV=FX
+      FW=FX
+      DO 11 ITER=1,ITMAX
+        XM=0.5*(A+B)
+        TOL1=TOL*ABS(X)+ZEPS
+        TOL2=2.*TOL1
+        IF(ABS(X-XM).LE.(TOL2-.5*(B-A))) GOTO 3
+        IF(ABS(E).GT.TOL1) THEN
+          R=(X-W)*(FX-FV)
+          Q=(X-V)*(FX-FW)
+          P=(X-V)*Q-(X-W)*R
+          Q=2.*(Q-R)
+          IF(Q.GT.0.) P=-P
+          Q=ABS(Q)
+          ETEMP=E
+          E=D
+          IF(ABS(P).GE.ABS(.5*Q*ETEMP).OR.P.LE.Q*(A-X).OR.
+     *        P.GE.Q*(B-X)) GOTO 1
+          D=P/Q
+          U=X+D
+          IF(U-A.LT.TOL2 .OR. B-U.LT.TOL2) D=SIGN(TOL1,XM-X)
+          GOTO 2
+        ENDIF
+1       IF(X.GE.XM) THEN
+          E=A-X
+        ELSE
+          E=B-X
+        ENDIF
+        D=CGOLD*E
+2       IF(ABS(D).GE.TOL1) THEN
+          U=X+D
+        ELSE
+          U=X+SIGN(TOL1,D)
+        ENDIF
+        FU=F(U)
+        IF(FU.LE.FX) THEN
+          IF(U.GE.X) THEN
+            A=X
+          ELSE
+            B=X
+          ENDIF
+          V=W
+          FV=FW
+          W=X
+          FW=FX
+          X=U
+          FX=FU
+        ELSE
+          IF(U.LT.X) THEN
+            A=U
+          ELSE
+            B=U
+          ENDIF
+          IF(FU.LE.FW .OR. W.EQ.X) THEN
+            V=W
+            FV=FW
+            W=U
+            FW=FU
+          ELSE IF(FU.LE.FV .OR. V.EQ.X .OR. V.EQ.W) THEN
+            V=U
+            FV=FU
+          ENDIF
+        ENDIF
+11    CONTINUE
+      WRITE (NFIL6,9012)
+9012  FORMAT(1H0,' RENTEL.BRT.ERR  BRENT EXCEEDED MAXIMUM ITERA',
+     1      'TIONS.')
+      STOP
+3     XMIN=X
+      BRENT=FX
+      RETURN
+      END
+C
+C
+      SUBROUTINE LINMIN(P,XI,N,FRET)
+      IMPLICIT REAL*8 (A-H,O-Z)
+      PARAMETER (NMAX=3,TOL=1.D-4)
+      EXTERNAL F1DIM
+      DIMENSION P(N),XI(N)
+      COMMON /F1COM/ PCOM(NMAX),XICOM(NMAX),NCOM
+      NCOM=N
+      DO 11 J=1,N
+        PCOM(J)=P(J)
+        XICOM(J)=XI(J)
+11    CONTINUE
+      AX=0.
+      XX=1.
+      BX=2.
+      CALL MNBRAK(AX,XX,BX,FA,FX,FB,F1DIM)
+      FRET=BRENT(AX,XX,BX,F1DIM,TOL,XMIN)
+      DO 12 J=1,N
+        XI(J)=XMIN*XI(J)
+        P(J)=P(J)+XI(J)
+12    CONTINUE
+      RETURN
+      END
+C
+C
+      SUBROUTINE POWEL1(P,XI,N,NP,FTOL,ITER,FRET)
+      IMPLICIT REAL*8 (A-H,O-Z)
+      PARAMETER (NMAX=3,ITMAX=200)
+      DIMENSION P(NP),XI(NP,NP),PT(NMAX),PTT(NMAX),XIT(NMAX)
+C
+      INTEGER PRTINT
+      include 'rensys.h'
+C
+      COMMON/RHOVAL/VALRHO
+      FRET=FNC1(P)
+      DO 11 J=1,N
+        PT(J)=P(J)
+11    CONTINUE
+      ITER=0
+1     ITER=ITER+1
+      FP=FRET
+      IBIG=0
+      DEL=0.
+      DO 13 I=1,N
+        DO 12 J=1,N
+          XIT(J)=XI(J,I)
+12      CONTINUE
+        CALL LINMIN(P,XIT,N,FRET)
+        IF(ABS(FP-FRET).GT.DEL)THEN
+          DEL=ABS(FP-FRET)
+          IBIG=I
+        ENDIF
+13    CONTINUE
+      IF(2.*ABS(FP-FRET).LE.FTOL*(ABS(FP)+ABS(FRET)))RETURN
+      IF(ITER.EQ.ITMAX) THEN
+      WRITE (NFIL6,9012)
+9012  FORMAT(1H0,' RENTEL.PWL.ERR  POWELL EXCEEDED MAXIMUM ITER',
+     1      'ATIONS.')
+      STOP
+      ENDIF
+      DO 14 J=1,N
+        PTT(J)=2.*P(J)-PT(J)
+        XIT(J)=P(J)-PT(J)
+        PT(J)=P(J)
+14    CONTINUE
+      FPTT=FNC1(PTT)
+      IF(FPTT.GE.FP)GO TO 1
+      T=2.*(FP-2.*FRET+FPTT)*(FP-FRET-DEL)**2-DEL*(FP-FPTT)**2
+      IF(T.GE.0.)GO TO 1
+      CALL LINMIN(P,XIT,N,FRET)
+      DO 15 J=1,N
+        XI(J,IBIG)=XIT(J)
+15    CONTINUE
+      GO TO 1
+      END
+C
+C
+      SUBROUTINE POWEL2(P,XI,N,NP,FTOL,ITER,FRET)
+      IMPLICIT REAL*8 (A-H,O-Z)
+      PARAMETER (NMAX=3,ITMAX=200)
+      DIMENSION P(NP),XI(NP,NP),PT(NMAX),PTT(NMAX),XIT(NMAX)
+C
+      INTEGER PRTINT
+      include 'rensys.h'
+C
+      COMMON/RHOVAL/VALRHO
+      FRET=FNC2(P)
+      DO 11 J=1,N
+        PT(J)=P(J)
+11    CONTINUE
+      ITER=0
+1     ITER=ITER+1
+      FP=FRET
+      IBIG=0
+      DEL=0.
+      DO 13 I=1,N
+        DO 12 J=1,N
+          XIT(J)=XI(J,I)
+12      CONTINUE
+        CALL LINMIN(P,XIT,N,FRET)
+        IF(ABS(FP-FRET).GT.DEL)THEN
+          DEL=ABS(FP-FRET)
+          IBIG=I
+        ENDIF
+13    CONTINUE
+      IF(2.*ABS(FP-FRET).LE.FTOL*(ABS(FP)+ABS(FRET)))RETURN
+      IF(ITER.EQ.ITMAX) THEN
+      WRITE (NFIL6,9012)
+9012  FORMAT(1H0,' RENTEL.PWL.ERR  POWELL EXCEEDED MAXIMUM ITER',
+     1      'ATIONS.')
+      STOP
+      ENDIF
+      DO 14 J=1,N
+        PTT(J)=2.*P(J)-PT(J)
+        XIT(J)=P(J)-PT(J)
+        PT(J)=P(J)
+14    CONTINUE
+      FPTT=FNC2(PTT)
+      IF(FPTT.GE.FP)GO TO 1
+      T=2.*(FP-2.*FRET+FPTT)*(FP-FRET-DEL)**2-DEL*(FP-FPTT)**2
+      IF(T.GE.0.)GO TO 1
+      CALL LINMIN(P,XIT,N,FRET)
+      DO 15 J=1,N
+        XI(J,IBIG)=XIT(J)
+15    CONTINUE
+      GO TO 1
+      END
+C
+C
+      SUBROUTINE MNBRAK(AX,BX,CX,FA,FB,FC,FUNC)
+      IMPLICIT REAL*8 (A-H,O-Z)
+      PARAMETER (GOLD=1.618034, GLIMIT=100., TINY=1.D-20)
+      FA=FUNC(AX)
+      FB=FUNC(BX)
+      IF(FB.GT.FA)THEN
+        DUM=AX
+        AX=BX
+        BX=DUM
+        DUM=FB
+        FB=FA
+        FA=DUM
+      ENDIF
+      CX=BX+GOLD*(BX-AX)
+      FC=FUNC(CX)
+1     IF(FB.GE.FC)THEN
+        R=(BX-AX)*(FB-FC)
+        Q=(BX-CX)*(FB-FA)
+        U=BX-((BX-CX)*Q-(BX-AX)*R)/(2.*SIGN(MAX(ABS(Q-R),TINY),Q-R))
+        ULIM=BX+GLIMIT*(CX-BX)
+        IF((BX-U)*(U-CX).GT.0.)THEN
+          FU=FUNC(U)
+          IF(FU.LT.FC)THEN
+            AX=BX
+            FA=FB
+            BX=U
+            FB=FU
+            GO TO 1
+          ELSE IF(FU.GT.FB)THEN
+            CX=U
+            FC=FU
+            GO TO 1
+          ENDIF
+          U=CX+GOLD*(CX-BX)
+          FU=FUNC(U)
+        ELSE IF((CX-U)*(U-ULIM).GT.0.)THEN
+          FU=FUNC(U)
+          IF(FU.LT.FC)THEN
+            BX=CX
+            CX=U
+            U=CX+GOLD*(CX-BX)
+            FB=FC
+            FC=FU
+            FU=FUNC(U)
+          ENDIF
+        ELSE IF((U-ULIM)*(ULIM-CX).GE.0.)THEN
+          U=ULIM
+          FU=FUNC(U)
+        ELSE
+          U=CX+GOLD*(CX-BX)
+          FU=FUNC(U)
+        ENDIF
+        AX=BX
+        BX=CX
+        CX=U
+        FA=FB
+        FB=FC
+        FC=FU
+        GO TO 1
+      ENDIF
+      RETURN
+      END
+C
+C
+      DOUBLE PRECISION FUNCTION F1DIM(X)
+      IMPLICIT REAL*8 (A-H,O-Z)
+      PARAMETER (NMAX=3)
+      REAL*8 M1,M2,M3,M
+      LOGICAL SYMM
+C
+C
+      COMMON /MOLCUL/ RHOE,FA1,FA2,FA3,FA4,FA5,FA6,FA7,FA8,
+     1               AA1,AA3,
+     1               F11,F33,F13,F111,F333,F113,F133,
+     1               F1111,F3333,F1113,F1333,F1133,
+     2               F1,F1A1,F2A1,F3A1,F4A1,F3,F1A3,F2A3,F3A3,F4A3,
+     3               F1A11,F2A11,F3A11,F1A33,F2A33,F3A33,
+     4               F1A13,F2A13,F3A13,
+     5               F1A111,F2A111,F1A333,F2A333,
+     6               F1A113,F2A113,F1A133,F2A133,
+     7               FA1111,FA3333,FA1113,
+     8               FA1333,FA1133, R12RF1, R32RF1, R12RF2, R32RF2,
+     8               RE12 , RE32 , M1 , M2 , M3 , M ,
+     9               U1 , U3 , U13 , V ,
+     1               SYMM
+      COMMON /F1COM/ PCOM(NMAX),XICOM(NMAX),NCOM
+      DIMENSION XT(NMAX)
+      DO 11 J=1,NCOM
+        XT(J)=PCOM(J)+X*XICOM(J)
+11    CONTINUE
+      IF (SYMM) THEN
+          F1DIM=FNC1(XT)
+      ELSE
+          F1DIM=FNC2(XT)
+      ENDIF
+      RETURN
+      END
+C
+C
+      SUBROUTINE CGRAD ( XIN , GOUT , HOUT )
+      IMPLICIT REAL*8 (A-H,O-Z)
+      DIMENSION XIN(3),GOUT(3),HOUT(3,3)
+      LOGICAL SYMM
+      REAL*8 M1,M2,M3,M
+C
+      COMMON /MOLCUL/ RHOE,FA1,FA2,FA3,FA4,FA5,FA6,FA7,FA8,
+     1               AA1,AA3,
+     1               F11,F33,F13,F111,F333,F113,F133,
+     1               F1111,F3333,F1113,F1333,F1133,
+     2               F1,F1A1,F2A1,F3A1,F4A1,F3,F1A3,F2A3,F3A3,F4A3,
+     3               F1A11,F2A11,F3A11,F1A33,F2A33,F3A33,
+     4               F1A13,F2A13,F3A13,
+     5               F1A111,F2A111,F1A333,F2A333,
+     6               F1A113,F2A113,F1A133,F2A133,
+     7               FA1111,FA3333,FA1113,
+     8               FA1333,FA1133, R12RF1, R32RF1, R12RF2, R32RF2,
+     8               RE12 , RE32 , M1 , M2 , M3 , M ,
+     9               U1 , U3 , U13 , V ,
+     1               SYMM
+C
+      E=EXP(1.0D+00)
+C
+      R12=XIN(1)
+      R32=XIN(2)
+      RHO=XIN(3)
+C
+      ANS12=4.*E**(3.*AA1*RE12+3.*AA3*R32)*COS(RHO)*FA1111-
+     . 4.*E**(3.*AA1*RE12+3.*AA3*R32)*F1111-4.*E**(3.*AA1*
+     . RE12+3.*AA3*R32)*FA1111
+      ANS11=-2.*E**(2.*AA1*R12+AA1*RE12+AA3*R32+2.*AA3*RE32
+     . )*FA1133+3.*E**(AA1*R12+2.*AA1*RE12+3.*AA3*R32)*COS(
+     . RHO)**2*F2A111-3.*E**(AA1*R12+2.*AA1*RE12+3.*AA3*R32
+     . )*COS(RHO)*F1A111-6.*E**(AA1*R12+2.*AA1*RE12+3.*AA3*
+     . R32)*COS(RHO)*F2A111-12.*E**(AA1*R12+2.*AA1*RE12+3.*
+     . AA3*R32)*COS(RHO)*FA1111-3.*E**(AA1*R12+2.*AA1*RE12+
+     . 3.*AA3*R32)*COS(RHO)*FA1113+3.*E**(AA1*R12+2.*AA1*
+     . RE12+3.*AA3*R32)*F111+3.*E**(AA1*R12+2.*AA1*RE12+3.*
+     . AA3*R32)*F1A111+3.*E**(AA1*R12+2.*AA1*RE12+3.*AA3*
+     . R32)*F2A111+12.*E**(AA1*R12+2.*AA1*RE12+3.*AA3*R32)*
+     . F1111+12.*E**(AA1*R12+2.*AA1*RE12+3.*AA3*R32)*FA1111
+     . +3.*E**(AA1*R12+2.*AA1*RE12+3.*AA3*R32)*F1113+3.*E**
+     . (AA1*R12+2.*AA1*RE12+3.*AA3*R32)*FA1113+3.*E**(AA1*
+     . R12+2.*AA1*RE12+2.*AA3*R32+AA3*RE32)*COS(RHO)*FA1113
+     . -3.*E**(AA1*R12+2.*AA1*RE12+2.*AA3*R32+AA3*RE32)*
+     . F1113-3.*E**(AA1*R12+2.*AA1*RE12+2.*AA3*R32+AA3*RE32
+     . )*FA1113+ANS12
+      ANS10=2.*E**(2.*AA1*R12+AA1*RE12+2.*AA3*R32+AA3*RE32)
+     . *COS(RHO)**2*F2A113-2.*E**(2.*AA1*R12+AA1*RE12+2.*
+     . AA3*R32+AA3*RE32)*COS(RHO)*F1A113-4.*E**(2.*AA1*R12+
+     . AA1*RE12+2.*AA3*R32+AA3*RE32)*COS(RHO)*F2A113-6.*E**
+     . (2.*AA1*R12+AA1*RE12+2.*AA3*R32+AA3*RE32)*COS(RHO)*
+     . FA1113-4.*E**(2.*AA1*R12+AA1*RE12+2.*AA3*R32+AA3*
+     . RE32)*COS(RHO)*FA1133+2.*E**(2.*AA1*R12+AA1*RE12+2.*
+     . AA3*R32+AA3*RE32)*F113+2.*E**(2.*AA1*R12+AA1*RE12+2.
+     . *AA3*R32+AA3*RE32)*F1A113+2.*E**(2.*AA1*R12+AA1*RE12
+     . +2.*AA3*R32+AA3*RE32)*F2A113+6.*E**(2.*AA1*R12+AA1*
+     . RE12+2.*AA3*R32+AA3*RE32)*F1113+6.*E**(2.*AA1*R12+
+     . AA1*RE12+2.*AA3*R32+AA3*RE32)*FA1113+4.*E**(2.*AA1*
+     . R12+AA1*RE12+2.*AA3*R32+AA3*RE32)*F1133+4.*E**(2.*
+     . AA1*R12+AA1*RE12+2.*AA3*R32+AA3*RE32)*FA1133+2.*E**(
+     . 2.*AA1*R12+AA1*RE12+AA3*R32+2.*AA3*RE32)*COS(RHO)*
+     . FA1133-2.*E**(2.*AA1*R12+AA1*RE12+AA3*R32+2.*AA3*
+     . RE32)*F1133+ANS11
+      ANS9=2.*E**(2.*AA1*R12+AA1*RE12+3.*AA3*R32)*COS(RHO)*
+     . FA1133-2.*E**(2.*AA1*R12+AA1*RE12+3.*AA3*R32)*F11-2.
+     . *E**(2.*AA1*R12+AA1*RE12+3.*AA3*R32)*F1A11-2.*E**(2.
+     . *AA1*R12+AA1*RE12+3.*AA3*R32)*F2A11-2.*E**(2.*AA1*
+     . R12+AA1*RE12+3.*AA3*R32)*F3A11-6.*E**(2.*AA1*R12+AA1
+     . *RE12+3.*AA3*R32)*F111-6.*E**(2.*AA1*R12+AA1*RE12+3.
+     . *AA3*R32)*F1A111-6.*E**(2.*AA1*R12+AA1*RE12+3.*AA3*
+     . R32)*F2A111-2.*E**(2.*AA1*R12+AA1*RE12+3.*AA3*R32)*
+     . F113-2.*E**(2.*AA1*R12+AA1*RE12+3.*AA3*R32)*F1A113-
+     . 2.*E**(2.*AA1*R12+AA1*RE12+3.*AA3*R32)*F2A113-12.*E**
+     . (2.*AA1*R12+AA1*RE12+3.*AA3*R32)*F1111-12.*E**(2.*
+     . AA1*R12+AA1*RE12+3.*AA3*R32)*FA1111-6.*E**(2.*AA1*
+     . R12+AA1*RE12+3.*AA3*R32)*F1113-6.*E**(2.*AA1*R12+AA1
+     . *RE12+3.*AA3*R32)*FA1113-2.*E**(2.*AA1*R12+AA1*RE12+
+     . 3.*AA3*R32)*F1133-2.*E**(2.*AA1*R12+AA1*RE12+3.*AA3*
+     . R32)*FA1133+ANS10
+      ANS8=-E**(3.*AA1*R12+3.*AA3*RE32)*FA1333+2.*E**(2.*
+     . AA1*R12+AA1*RE12+3.*AA3*R32)*COS(RHO)**3*F3A11-2.*E
+     . **(2.*AA1*R12+AA1*RE12+3.*AA3*R32)*COS(RHO)**2*F2A11
+     . -6.*E**(2.*AA1*R12+AA1*RE12+3.*AA3*R32)*COS(RHO)**2*
+     . F3A11-6.*E**(2.*AA1*R12+AA1*RE12+3.*AA3*R32)*COS(RHO
+     . )**2*F2A111-2.*E**(2.*AA1*R12+AA1*RE12+3.*AA3*R32)*
+     . COS(RHO)**2*F2A113+2.*E**(2.*AA1*R12+AA1*RE12+3.*AA3
+     . *R32)*COS(RHO)*F1A11+4.*E**(2.*AA1*R12+AA1*RE12+3.*
+     . AA3*R32)*COS(RHO)*F2A11+6.*E**(2.*AA1*R12+AA1*RE12+
+     . 3.*AA3*R32)*COS(RHO)*F3A11+6.*E**(2.*AA1*R12+AA1*RE12
+     . +3.*AA3*R32)*COS(RHO)*F1A111+12.*E**(2.*AA1*R12+AA1*
+     . RE12+3.*AA3*R32)*COS(RHO)*F2A111+2.*E**(2.*AA1*R12+
+     . AA1*RE12+3.*AA3*R32)*COS(RHO)*F1A113+4.*E**(2.*AA1*
+     . R12+AA1*RE12+3.*AA3*R32)*COS(RHO)*F2A113+12.*E**(2.*
+     . AA1*R12+AA1*RE12+3.*AA3*R32)*COS(RHO)*FA1111+6.*E**(
+     . 2.*AA1*R12+AA1*RE12+3.*AA3*R32)*COS(RHO)*FA1113+ANS9
+      ANS7=-3.*E**(3.*AA1*R12+2.*AA3*R32+AA3*RE32)*FA1333-
+     . 4.*E**(3.*AA1*R12+2.*AA3*R32+AA3*RE32)*F1133-4.*E**(
+     . 3.*AA1*R12+2.*AA3*R32+AA3*RE32)*FA1133+E**(3.*AA1*R12
+     . +AA3*R32+2.*AA3*RE32)*COS(RHO)**2*F2A133-E**(3.*AA1*
+     . R12+AA3*R32+2.*AA3*RE32)*COS(RHO)*F1A133-2.*E**(3.*
+     . AA1*R12+AA3*R32+2.*AA3*RE32)*COS(RHO)*F2A133-3.*E**(
+     . 3.*AA1*R12+AA3*R32+2.*AA3*RE32)*COS(RHO)*FA1333-2.*E
+     . **(3.*AA1*R12+AA3*R32+2.*AA3*RE32)*COS(RHO)*FA1133+E
+     . **(3.*AA1*R12+AA3*R32+2.*AA3*RE32)*F133+E**(3.*AA1*
+     . R12+AA3*R32+2.*AA3*RE32)*F1A133+E**(3.*AA1*R12+AA3*
+     . R32+2.*AA3*RE32)*F2A133+3.*E**(3.*AA1*R12+AA3*R32+2.
+     . *AA3*RE32)*F1333+3.*E**(3.*AA1*R12+AA3*R32+2.*AA3*
+     . RE32)*FA1333+2.*E**(3.*AA1*R12+AA3*R32+2.*AA3*RE32)*
+     . F1133+2.*E**(3.*AA1*R12+AA3*R32+2.*AA3*RE32)*FA1133+
+     . E**(3.*AA1*R12+3.*AA3*RE32)*COS(RHO)*FA1333-E**(3.*
+     . AA1*R12+3.*AA3*RE32)*F1333+ANS8
+      ANS6=4.*E**(3.*AA1*R12+2.*AA3*R32+AA3*RE32)*COS(RHO)*
+     . F2A133+3.*E**(3.*AA1*R12+2.*AA3*R32+AA3*RE32)*COS(
+     . RHO)*FA1113+3.*E**(3.*AA1*R12+2.*AA3*R32+AA3*RE32)*
+     . COS(RHO)*FA1333+4.*E**(3.*AA1*R12+2.*AA3*R32+AA3*
+     . RE32)*COS(RHO)*FA1133-E**(3.*AA1*R12+2.*AA3*R32+AA3*
+     . RE32)*F13-E**(3.*AA1*R12+2.*AA3*R32+AA3*RE32)*F1A13-
+     . E**(3.*AA1*R12+2.*AA3*R32+AA3*RE32)*F2A13-E**(3.*AA1
+     . *R12+2.*AA3*R32+AA3*RE32)*F3A13-2.*E**(3.*AA1*R12+2.
+     . *AA3*R32+AA3*RE32)*F113-2.*E**(3.*AA1*R12+2.*AA3*R32
+     . +AA3*RE32)*F1A113-2.*E**(3.*AA1*R12+2.*AA3*R32+AA3*
+     . RE32)*F2A113-2.*E**(3.*AA1*R12+2.*AA3*R32+AA3*RE32)*
+     . F133-2.*E**(3.*AA1*R12+2.*AA3*R32+AA3*RE32)*F1A133-
+     . 2.*E**(3.*AA1*R12+2.*AA3*R32+AA3*RE32)*F2A133-3.*E**(
+     . 3.*AA1*R12+2.*AA3*R32+AA3*RE32)*F1113-3.*E**(3.*AA1*
+     . R12+2.*AA3*R32+AA3*RE32)*FA1113-3.*E**(3.*AA1*R12+2.
+     . *AA3*R32+AA3*RE32)*F1333+ANS7
+      ANS5=3.*E**(3.*AA1*R12+3.*AA3*R32)*F1113+3.*E**(3.*
+     . AA1*R12+3.*AA3*R32)*FA1113+E**(3.*AA1*R12+3.*AA3*R32
+     . )*F1333+E**(3.*AA1*R12+3.*AA3*R32)*FA1333+2.*E**(3.*
+     . AA1*R12+3.*AA3*R32)*F1133+2.*E**(3.*AA1*R12+3.*AA3*
+     . R32)*FA1133+E**(3.*AA1*R12+2.*AA3*R32+AA3*RE32)*COS(
+     . RHO)**3*F3A13-E**(3.*AA1*R12+2.*AA3*R32+AA3*RE32)*
+     . COS(RHO)**2*F2A13-3.*E**(3.*AA1*R12+2.*AA3*R32+AA3*
+     . RE32)*COS(RHO)**2*F3A13-2.*E**(3.*AA1*R12+2.*AA3*R32
+     . +AA3*RE32)*COS(RHO)**2*F2A113-2.*E**(3.*AA1*R12+2.*
+     . AA3*R32+AA3*RE32)*COS(RHO)**2*F2A133+E**(3.*AA1*R12+
+     . 2.*AA3*R32+AA3*RE32)*COS(RHO)*F1A13+2.*E**(3.*AA1*R12
+     . +2.*AA3*R32+AA3*RE32)*COS(RHO)*F2A13+3.*E**(3.*AA1*
+     . R12+2.*AA3*R32+AA3*RE32)*COS(RHO)*F3A13+2.*E**(3.*
+     . AA1*R12+2.*AA3*R32+AA3*RE32)*COS(RHO)*F1A113+4.*E**(
+     . 3.*AA1*R12+2.*AA3*R32+AA3*RE32)*COS(RHO)*F2A113+2.*E
+     . **(3.*AA1*R12+2.*AA3*R32+AA3*RE32)*COS(RHO)*F1A133+
+     . ANS6
+      ANS4=E**(3.*AA1*R12+3.*AA3*R32)*F1+E**(3.*AA1*R12+3.*
+     . AA3*R32)*F1A1+E**(3.*AA1*R12+3.*AA3*R32)*F2A1+E**(3.
+     . *AA1*R12+3.*AA3*R32)*F3A1+E**(3.*AA1*R12+3.*AA3*R32)
+     . *F4A1+2.*E**(3.*AA1*R12+3.*AA3*R32)*F11+2.*E**(3.*
+     . AA1*R12+3.*AA3*R32)*F1A11+2.*E**(3.*AA1*R12+3.*AA3*
+     . R32)*F2A11+2.*E**(3.*AA1*R12+3.*AA3*R32)*F3A11+E**(
+     . 3.*AA1*R12+3.*AA3*R32)*F13+E**(3.*AA1*R12+3.*AA3*R32)
+     . *F1A13+E**(3.*AA1*R12+3.*AA3*R32)*F2A13+E**(3.*AA1*
+     . R12+3.*AA3*R32)*F3A13+3.*E**(3.*AA1*R12+3.*AA3*R32)*
+     . F111+3.*E**(3.*AA1*R12+3.*AA3*R32)*F1A111+3.*E**(3.*
+     . AA1*R12+3.*AA3*R32)*F2A111+2.*E**(3.*AA1*R12+3.*AA3*
+     . R32)*F113+2.*E**(3.*AA1*R12+3.*AA3*R32)*F1A113+2.*E
+     . **(3.*AA1*R12+3.*AA3*R32)*F2A113+E**(3.*AA1*R12+3.*
+     . AA3*R32)*F133+E**(3.*AA1*R12+3.*AA3*R32)*F1A133+E**(
+     . 3.*AA1*R12+3.*AA3*R32)*F2A133+4.*E**(3.*AA1*R12+3.*
+     . AA3*R32)*F1111+4.*E**(3.*AA1*R12+3.*AA3*R32)*FA1111+
+     . ANS5
+      ANS3=-3.*E**(3.*AA1*R12+3.*AA3*R32)*COS(RHO)*F3A1-4.*
+     . E**(3.*AA1*R12+3.*AA3*R32)*COS(RHO)*F4A1-2.*E**(3.*
+     . AA1*R12+3.*AA3*R32)*COS(RHO)*F1A11-4.*E**(3.*AA1*R12
+     . +3.*AA3*R32)*COS(RHO)*F2A11-6.*E**(3.*AA1*R12+3.*AA3
+     . *R32)*COS(RHO)*F3A11-E**(3.*AA1*R12+3.*AA3*R32)*COS(
+     . RHO)*F1A13-2.*E**(3.*AA1*R12+3.*AA3*R32)*COS(RHO)*
+     . F2A13-3.*E**(3.*AA1*R12+3.*AA3*R32)*COS(RHO)*F3A13-
+     . 3.*E**(3.*AA1*R12+3.*AA3*R32)*COS(RHO)*F1A111-6.*E**(
+     . 3.*AA1*R12+3.*AA3*R32)*COS(RHO)*F2A111-2.*E**(3.*AA1*
+     . R12+3.*AA3*R32)*COS(RHO)*F1A113-4.*E**(3.*AA1*R12+3.
+     . *AA3*R32)*COS(RHO)*F2A113-E**(3.*AA1*R12+3.*AA3*R32)
+     . *COS(RHO)*F1A133-2.*E**(3.*AA1*R12+3.*AA3*R32)*COS(
+     . RHO)*F2A133-4.*E**(3.*AA1*R12+3.*AA3*R32)*COS(RHO)*
+     . FA1111-3.*E**(3.*AA1*R12+3.*AA3*R32)*COS(RHO)*FA1113
+     . -E**(3.*AA1*R12+3.*AA3*R32)*COS(RHO)*FA1333-2.*E**(
+     . 3.*AA1*R12+3.*AA3*R32)*COS(RHO)*FA1133+ANS4
+      ANS2=E**(3.*AA1*R12+3.*AA3*R32)*COS(RHO)**4*F4A1-E**(
+     . 3.*AA1*R12+3.*AA3*R32)*COS(RHO)**3*F3A1-4.*E**(3.*AA1
+     . *R12+3.*AA3*R32)*COS(RHO)**3*F4A1-2.*E**(3.*AA1*R12+
+     . 3.*AA3*R32)*COS(RHO)**3*F3A11-E**(3.*AA1*R12+3.*AA3*
+     . R32)*COS(RHO)**3*F3A13+E**(3.*AA1*R12+3.*AA3*R32)*
+     . COS(RHO)**2*F2A1+3.*E**(3.*AA1*R12+3.*AA3*R32)*COS(
+     . RHO)**2*F3A1+6.*E**(3.*AA1*R12+3.*AA3*R32)*COS(RHO)
+     . **2*F4A1+2.*E**(3.*AA1*R12+3.*AA3*R32)*COS(RHO)**2*
+     . F2A11+6.*E**(3.*AA1*R12+3.*AA3*R32)*COS(RHO)**2*
+     . F3A11+E**(3.*AA1*R12+3.*AA3*R32)*COS(RHO)**2*F2A13+
+     . 3.*E**(3.*AA1*R12+3.*AA3*R32)*COS(RHO)**2*F3A13+3.*E
+     . **(3.*AA1*R12+3.*AA3*R32)*COS(RHO)**2*F2A111+2.*E**(
+     . 3.*AA1*R12+3.*AA3*R32)*COS(RHO)**2*F2A113+E**(3.*AA1*
+     . R12+3.*AA3*R32)*COS(RHO)**2*F2A133-E**(3.*AA1*R12+3.
+     . *AA3*R32)*COS(RHO)*F1A1-2.*E**(3.*AA1*R12+3.*AA3*R32
+     . )*COS(RHO)*F2A1+ANS3
+      ANS1=E**(AA1*RE12)*AA1*ANS2
+      GOUT(1)=ANS1/E**(4.*AA1*R12+3.*AA3*R32)
+C
+C
+      ANS12=E**(3.*AA1*RE12+3.*AA3*R32)*COS(RHO)*FA1113-E**
+     . (3.*AA1*RE12+3.*AA3*R32)*F1113-E**(3.*AA1*RE12+3.*
+     . AA3*R32)*FA1113
+      ANS11=-3.*E**(2.*AA1*R12+AA1*RE12+AA3*R32+2.*AA3*RE32
+     . )*FA1333+E**(AA1*R12+2.*AA1*RE12+3.*AA3*R32)*COS(RHO
+     . )**2*F2A113-E**(AA1*R12+2.*AA1*RE12+3.*AA3*R32)*COS(
+     . RHO)*F1A113-2.*E**(AA1*R12+2.*AA1*RE12+3.*AA3*R32)*
+     . COS(RHO)*F2A113-3.*E**(AA1*R12+2.*AA1*RE12+3.*AA3*
+     . R32)*COS(RHO)*FA1113-2.*E**(AA1*R12+2.*AA1*RE12+3.*
+     . AA3*R32)*COS(RHO)*FA1133+E**(AA1*R12+2.*AA1*RE12+3.*
+     . AA3*R32)*F113+E**(AA1*R12+2.*AA1*RE12+3.*AA3*R32)*
+     . F1A113+E**(AA1*R12+2.*AA1*RE12+3.*AA3*R32)*F2A113+3.
+     . *E**(AA1*R12+2.*AA1*RE12+3.*AA3*R32)*F1113+3.*E**(
+     . AA1*R12+2.*AA1*RE12+3.*AA3*R32)*FA1113+2.*E**(AA1*
+     . R12+2.*AA1*RE12+3.*AA3*R32)*F1133+2.*E**(AA1*R12+2.*
+     . AA1*RE12+3.*AA3*R32)*FA1133+2.*E**(AA1*R12+2.*AA1*
+     . RE12+2.*AA3*R32+AA3*RE32)*COS(RHO)*FA1133-2.*E**(AA1
+     . *R12+2.*AA1*RE12+2.*AA3*R32+AA3*RE32)*F1133-2.*E**(
+     . AA1*R12+2.*AA1*RE12+2.*AA3*R32+AA3*RE32)*FA1133+
+     . ANS12
+      ANS10=2.*E**(2.*AA1*R12+AA1*RE12+2.*AA3*R32+AA3*RE32)
+     . *COS(RHO)**2*F2A133-2.*E**(2.*AA1*R12+AA1*RE12+2.*
+     . AA3*R32+AA3*RE32)*COS(RHO)*F1A133-4.*E**(2.*AA1*R12+
+     . AA1*RE12+2.*AA3*R32+AA3*RE32)*COS(RHO)*F2A133-6.*E**
+     . (2.*AA1*R12+AA1*RE12+2.*AA3*R32+AA3*RE32)*COS(RHO)*
+     . FA1333-4.*E**(2.*AA1*R12+AA1*RE12+2.*AA3*R32+AA3*
+     . RE32)*COS(RHO)*FA1133+2.*E**(2.*AA1*R12+AA1*RE12+2.*
+     . AA3*R32+AA3*RE32)*F133+2.*E**(2.*AA1*R12+AA1*RE12+2.
+     . *AA3*R32+AA3*RE32)*F1A133+2.*E**(2.*AA1*R12+AA1*RE12
+     . +2.*AA3*R32+AA3*RE32)*F2A133+6.*E**(2.*AA1*R12+AA1*
+     . RE12+2.*AA3*R32+AA3*RE32)*F1333+6.*E**(2.*AA1*R12+
+     . AA1*RE12+2.*AA3*R32+AA3*RE32)*FA1333+4.*E**(2.*AA1*
+     . R12+AA1*RE12+2.*AA3*R32+AA3*RE32)*F1133+4.*E**(2.*
+     . AA1*R12+AA1*RE12+2.*AA3*R32+AA3*RE32)*FA1133+3.*E**(
+     . 2.*AA1*R12+AA1*RE12+AA3*R32+2.*AA3*RE32)*COS(RHO)*
+     . FA1333-3.*E**(2.*AA1*R12+AA1*RE12+AA3*R32+2.*AA3*
+     . RE32)*F1333+ANS11
+      ANS9=4.*E**(2.*AA1*R12+AA1*RE12+3.*AA3*R32)*COS(RHO)*
+     . FA1133-E**(2.*AA1*R12+AA1*RE12+3.*AA3*R32)*F13-E**(
+     . 2.*AA1*R12+AA1*RE12+3.*AA3*R32)*F1A13-E**(2.*AA1*R12+
+     . AA1*RE12+3.*AA3*R32)*F2A13-E**(2.*AA1*R12+AA1*RE12+
+     . 3.*AA3*R32)*F3A13-2.*E**(2.*AA1*R12+AA1*RE12+3.*AA3*
+     . R32)*F113-2.*E**(2.*AA1*R12+AA1*RE12+3.*AA3*R32)*
+     . F1A113-2.*E**(2.*AA1*R12+AA1*RE12+3.*AA3*R32)*F2A113
+     . -2.*E**(2.*AA1*R12+AA1*RE12+3.*AA3*R32)*F133-2.*E**(
+     . 2.*AA1*R12+AA1*RE12+3.*AA3*R32)*F1A133-2.*E**(2.*AA1*
+     . R12+AA1*RE12+3.*AA3*R32)*F2A133-3.*E**(2.*AA1*R12+
+     . AA1*RE12+3.*AA3*R32)*F1113-3.*E**(2.*AA1*R12+AA1*
+     . RE12+3.*AA3*R32)*FA1113-3.*E**(2.*AA1*R12+AA1*RE12+
+     . 3.*AA3*R32)*F1333-3.*E**(2.*AA1*R12+AA1*RE12+3.*AA3*
+     . R32)*FA1333-4.*E**(2.*AA1*R12+AA1*RE12+3.*AA3*R32)*
+     . F1133-4.*E**(2.*AA1*R12+AA1*RE12+3.*AA3*R32)*FA1133+
+     . ANS10
+      ANS8=-4.*E**(3.*AA1*R12+3.*AA3*RE32)*FA3333+E**(2.*
+     . AA1*R12+AA1*RE12+3.*AA3*R32)*COS(RHO)**3*F3A13-E**(
+     . 2.*AA1*R12+AA1*RE12+3.*AA3*R32)*COS(RHO)**2*F2A13-3.*
+     . E**(2.*AA1*R12+AA1*RE12+3.*AA3*R32)*COS(RHO)**2*
+     . F3A13-2.*E**(2.*AA1*R12+AA1*RE12+3.*AA3*R32)*COS(RHO
+     . )**2*F2A113-2.*E**(2.*AA1*R12+AA1*RE12+3.*AA3*R32)*
+     . COS(RHO)**2*F2A133+E**(2.*AA1*R12+AA1*RE12+3.*AA3*
+     . R32)*COS(RHO)*F1A13+2.*E**(2.*AA1*R12+AA1*RE12+3.*
+     . AA3*R32)*COS(RHO)*F2A13+3.*E**(2.*AA1*R12+AA1*RE12+
+     . 3.*AA3*R32)*COS(RHO)*F3A13+2.*E**(2.*AA1*R12+AA1*RE12
+     . +3.*AA3*R32)*COS(RHO)*F1A113+4.*E**(2.*AA1*R12+AA1*
+     . RE12+3.*AA3*R32)*COS(RHO)*F2A113+2.*E**(2.*AA1*R12+
+     . AA1*RE12+3.*AA3*R32)*COS(RHO)*F1A133+4.*E**(2.*AA1*
+     . R12+AA1*RE12+3.*AA3*R32)*COS(RHO)*F2A133+3.*E**(2.*
+     . AA1*R12+AA1*RE12+3.*AA3*R32)*COS(RHO)*FA1113+3.*E**(
+     . 2.*AA1*R12+AA1*RE12+3.*AA3*R32)*COS(RHO)*FA1333+ANS9
+      ANS7=-6.*E**(3.*AA1*R12+2.*AA3*R32+AA3*RE32)*FA1333-
+     . 2.*E**(3.*AA1*R12+2.*AA3*R32+AA3*RE32)*F1133-2.*E**(
+     . 3.*AA1*R12+2.*AA3*R32+AA3*RE32)*FA1133+3.*E**(3.*AA1*
+     . R12+AA3*R32+2.*AA3*RE32)*COS(RHO)**2*F2A333-3.*E**(
+     . 3.*AA1*R12+AA3*R32+2.*AA3*RE32)*COS(RHO)*F1A333-6.*E
+     . **(3.*AA1*R12+AA3*R32+2.*AA3*RE32)*COS(RHO)*F2A333-
+     . 12.*E**(3.*AA1*R12+AA3*R32+2.*AA3*RE32)*COS(RHO)*
+     . FA3333-3.*E**(3.*AA1*R12+AA3*R32+2.*AA3*RE32)*COS(
+     . RHO)*FA1333+3.*E**(3.*AA1*R12+AA3*R32+2.*AA3*RE32)*
+     . F333+3.*E**(3.*AA1*R12+AA3*R32+2.*AA3*RE32)*F1A333+
+     . 3.*E**(3.*AA1*R12+AA3*R32+2.*AA3*RE32)*F2A333+12.*E**
+     . (3.*AA1*R12+AA3*R32+2.*AA3*RE32)*F3333+12.*E**(3.*
+     . AA1*R12+AA3*R32+2.*AA3*RE32)*FA3333+3.*E**(3.*AA1*
+     . R12+AA3*R32+2.*AA3*RE32)*F1333+3.*E**(3.*AA1*R12+AA3
+     . *R32+2.*AA3*RE32)*FA1333+4.*E**(3.*AA1*R12+3.*AA3*
+     . RE32)*COS(RHO)*FA3333-4.*E**(3.*AA1*R12+3.*AA3*RE32)
+     . *F3333+ANS8
+      ANS6=4.*E**(3.*AA1*R12+2.*AA3*R32+AA3*RE32)*COS(RHO)*
+     . F2A133+12.*E**(3.*AA1*R12+2.*AA3*R32+AA3*RE32)*COS(
+     . RHO)*FA3333+6.*E**(3.*AA1*R12+2.*AA3*R32+AA3*RE32)*
+     . COS(RHO)*FA1333+2.*E**(3.*AA1*R12+2.*AA3*R32+AA3*
+     . RE32)*COS(RHO)*FA1133-2.*E**(3.*AA1*R12+2.*AA3*R32+
+     . AA3*RE32)*F33-2.*E**(3.*AA1*R12+2.*AA3*R32+AA3*RE32)
+     . *F1A33-2.*E**(3.*AA1*R12+2.*AA3*R32+AA3*RE32)*F2A33-
+     . 2.*E**(3.*AA1*R12+2.*AA3*R32+AA3*RE32)*F3A33-6.*E**(
+     . 3.*AA1*R12+2.*AA3*R32+AA3*RE32)*F333-6.*E**(3.*AA1*
+     . R12+2.*AA3*R32+AA3*RE32)*F1A333-6.*E**(3.*AA1*R12+2.
+     . *AA3*R32+AA3*RE32)*F2A333-2.*E**(3.*AA1*R12+2.*AA3*
+     . R32+AA3*RE32)*F133-2.*E**(3.*AA1*R12+2.*AA3*R32+AA3*
+     . RE32)*F1A133-2.*E**(3.*AA1*R12+2.*AA3*R32+AA3*RE32)*
+     . F2A133-12.*E**(3.*AA1*R12+2.*AA3*R32+AA3*RE32)*F3333
+     . -12.*E**(3.*AA1*R12+2.*AA3*R32+AA3*RE32)*FA3333-6.*E
+     . **(3.*AA1*R12+2.*AA3*R32+AA3*RE32)*F1333+ANS7
+      ANS5=E**(3.*AA1*R12+3.*AA3*R32)*F1113+E**(3.*AA1*R12+
+     . 3.*AA3*R32)*FA1113+3.*E**(3.*AA1*R12+3.*AA3*R32)*
+     . F1333+3.*E**(3.*AA1*R12+3.*AA3*R32)*FA1333+2.*E**(3.
+     . *AA1*R12+3.*AA3*R32)*F1133+2.*E**(3.*AA1*R12+3.*AA3*
+     . R32)*FA1133+2.*E**(3.*AA1*R12+2.*AA3*R32+AA3*RE32)*
+     . COS(RHO)**3*F3A33-2.*E**(3.*AA1*R12+2.*AA3*R32+AA3*
+     . RE32)*COS(RHO)**2*F2A33-6.*E**(3.*AA1*R12+2.*AA3*R32
+     . +AA3*RE32)*COS(RHO)**2*F3A33-6.*E**(3.*AA1*R12+2.*
+     . AA3*R32+AA3*RE32)*COS(RHO)**2*F2A333-2.*E**(3.*AA1*
+     . R12+2.*AA3*R32+AA3*RE32)*COS(RHO)**2*F2A133+2.*E**(
+     . 3.*AA1*R12+2.*AA3*R32+AA3*RE32)*COS(RHO)*F1A33+4.*E**
+     . (3.*AA1*R12+2.*AA3*R32+AA3*RE32)*COS(RHO)*F2A33+6.*E
+     . **(3.*AA1*R12+2.*AA3*R32+AA3*RE32)*COS(RHO)*F3A33+6.
+     . *E**(3.*AA1*R12+2.*AA3*R32+AA3*RE32)*COS(RHO)*F1A333
+     . +12.*E**(3.*AA1*R12+2.*AA3*R32+AA3*RE32)*COS(RHO)*
+     . F2A333+2.*E**(3.*AA1*R12+2.*AA3*R32+AA3*RE32)*COS(
+     . RHO)*F1A133+ANS6
+      ANS4=E**(3.*AA1*R12+3.*AA3*R32)*F3+E**(3.*AA1*R12+3.*
+     . AA3*R32)*F1A3+E**(3.*AA1*R12+3.*AA3*R32)*F2A3+E**(3.
+     . *AA1*R12+3.*AA3*R32)*F3A3+E**(3.*AA1*R12+3.*AA3*R32)
+     . *F4A3+2.*E**(3.*AA1*R12+3.*AA3*R32)*F33+2.*E**(3.*
+     . AA1*R12+3.*AA3*R32)*F1A33+2.*E**(3.*AA1*R12+3.*AA3*
+     . R32)*F2A33+2.*E**(3.*AA1*R12+3.*AA3*R32)*F3A33+E**(
+     . 3.*AA1*R12+3.*AA3*R32)*F13+E**(3.*AA1*R12+3.*AA3*R32)
+     . *F1A13+E**(3.*AA1*R12+3.*AA3*R32)*F2A13+E**(3.*AA1*
+     . R12+3.*AA3*R32)*F3A13+3.*E**(3.*AA1*R12+3.*AA3*R32)*
+     . F333+3.*E**(3.*AA1*R12+3.*AA3*R32)*F1A333+3.*E**(3.*
+     . AA1*R12+3.*AA3*R32)*F2A333+E**(3.*AA1*R12+3.*AA3*R32
+     . )*F113+E**(3.*AA1*R12+3.*AA3*R32)*F1A113+E**(3.*AA1*
+     . R12+3.*AA3*R32)*F2A113+2.*E**(3.*AA1*R12+3.*AA3*R32)
+     . *F133+2.*E**(3.*AA1*R12+3.*AA3*R32)*F1A133+2.*E**(3.
+     . *AA1*R12+3.*AA3*R32)*F2A133+4.*E**(3.*AA1*R12+3.*AA3
+     . *R32)*F3333+4.*E**(3.*AA1*R12+3.*AA3*R32)*FA3333+
+     . ANS5
+      ANS3=-3.*E**(3.*AA1*R12+3.*AA3*R32)*COS(RHO)*F3A3-4.*
+     . E**(3.*AA1*R12+3.*AA3*R32)*COS(RHO)*F4A3-2.*E**(3.*
+     . AA1*R12+3.*AA3*R32)*COS(RHO)*F1A33-4.*E**(3.*AA1*R12
+     . +3.*AA3*R32)*COS(RHO)*F2A33-6.*E**(3.*AA1*R12+3.*AA3
+     . *R32)*COS(RHO)*F3A33-E**(3.*AA1*R12+3.*AA3*R32)*COS(
+     . RHO)*F1A13-2.*E**(3.*AA1*R12+3.*AA3*R32)*COS(RHO)*
+     . F2A13-3.*E**(3.*AA1*R12+3.*AA3*R32)*COS(RHO)*F3A13-
+     . 3.*E**(3.*AA1*R12+3.*AA3*R32)*COS(RHO)*F1A333-6.*E**(
+     . 3.*AA1*R12+3.*AA3*R32)*COS(RHO)*F2A333-E**(3.*AA1*R12
+     . +3.*AA3*R32)*COS(RHO)*F1A113-2.*E**(3.*AA1*R12+3.*
+     . AA3*R32)*COS(RHO)*F2A113-2.*E**(3.*AA1*R12+3.*AA3*
+     . R32)*COS(RHO)*F1A133-4.*E**(3.*AA1*R12+3.*AA3*R32)*
+     . COS(RHO)*F2A133-4.*E**(3.*AA1*R12+3.*AA3*R32)*COS(
+     . RHO)*FA3333-E**(3.*AA1*R12+3.*AA3*R32)*COS(RHO)*
+     . FA1113-3.*E**(3.*AA1*R12+3.*AA3*R32)*COS(RHO)*FA1333
+     . -2.*E**(3.*AA1*R12+3.*AA3*R32)*COS(RHO)*FA1133+ANS4
+      ANS2=E**(3.*AA1*R12+3.*AA3*R32)*COS(RHO)**4*F4A3-E**(
+     . 3.*AA1*R12+3.*AA3*R32)*COS(RHO)**3*F3A3-4.*E**(3.*AA1
+     . *R12+3.*AA3*R32)*COS(RHO)**3*F4A3-2.*E**(3.*AA1*R12+
+     . 3.*AA3*R32)*COS(RHO)**3*F3A33-E**(3.*AA1*R12+3.*AA3*
+     . R32)*COS(RHO)**3*F3A13+E**(3.*AA1*R12+3.*AA3*R32)*
+     . COS(RHO)**2*F2A3+3.*E**(3.*AA1*R12+3.*AA3*R32)*COS(
+     . RHO)**2*F3A3+6.*E**(3.*AA1*R12+3.*AA3*R32)*COS(RHO)
+     . **2*F4A3+2.*E**(3.*AA1*R12+3.*AA3*R32)*COS(RHO)**2*
+     . F2A33+6.*E**(3.*AA1*R12+3.*AA3*R32)*COS(RHO)**2*
+     . F3A33+E**(3.*AA1*R12+3.*AA3*R32)*COS(RHO)**2*F2A13+
+     . 3.*E**(3.*AA1*R12+3.*AA3*R32)*COS(RHO)**2*F3A13+3.*E
+     . **(3.*AA1*R12+3.*AA3*R32)*COS(RHO)**2*F2A333+E**(3.*
+     . AA1*R12+3.*AA3*R32)*COS(RHO)**2*F2A113+2.*E**(3.*AA1
+     . *R12+3.*AA3*R32)*COS(RHO)**2*F2A133-E**(3.*AA1*R12+
+     . 3.*AA3*R32)*COS(RHO)*F1A3-2.*E**(3.*AA1*R12+3.*AA3*
+     . R32)*COS(RHO)*F2A3+ANS3
+      ANS1=E**(AA3*RE32)*AA3*ANS2
+      GOUT(2)=ANS1/E**(3.*AA1*R12+4.*AA3*R32)
+C
+C
+      ANS16=2.*E**(2.*AA1*R12+2.*AA1*RE12+3.*AA3*R32+AA3*
+     . RE32)*FA1133-E**(2.*AA1*R12+2.*AA1*RE12+2.*AA3*R32+
+     . 2.*AA3*RE32)*FA1133-2.*E**(AA1*R12+3.*AA1*RE12+4.*AA3
+     . *R32)*COS(RHO)*F2A111+E**(AA1*R12+3.*AA1*RE12+4.*AA3
+     . *R32)*F1A111+2.*E**(AA1*R12+3.*AA1*RE12+4.*AA3*R32)*
+     . F2A111+4.*E**(AA1*R12+3.*AA1*RE12+4.*AA3*R32)*FA1111
+     . +E**(AA1*R12+3.*AA1*RE12+4.*AA3*R32)*FA1113-E**(AA1*
+     . R12+3.*AA1*RE12+3.*AA3*R32+AA3*RE32)*FA1113-E**(4.*
+     . AA1*RE12+4.*AA3*R32)*FA1111
+      ANS15=6.*E**(2.*AA1*R12+2.*AA1*RE12+4.*AA3*R32)*COS(
+     . RHO)*F2A111+2.*E**(2.*AA1*R12+2.*AA1*RE12+4.*AA3*R32
+     . )*COS(RHO)*F2A113-E**(2.*AA1*R12+2.*AA1*RE12+4.*AA3*
+     . R32)*F1A11-2.*E**(2.*AA1*R12+2.*AA1*RE12+4.*AA3*R32)
+     . *F2A11-3.*E**(2.*AA1*R12+2.*AA1*RE12+4.*AA3*R32)*
+     . F3A11-3.*E**(2.*AA1*R12+2.*AA1*RE12+4.*AA3*R32)*
+     . F1A111-6.*E**(2.*AA1*R12+2.*AA1*RE12+4.*AA3*R32)*
+     . F2A111-E**(2.*AA1*R12+2.*AA1*RE12+4.*AA3*R32)*F1A113
+     . -2.*E**(2.*AA1*R12+2.*AA1*RE12+4.*AA3*R32)*F2A113-6.
+     . *E**(2.*AA1*R12+2.*AA1*RE12+4.*AA3*R32)*FA1111-3.*E
+     . **(2.*AA1*R12+2.*AA1*RE12+4.*AA3*R32)*FA1113-E**(2.*
+     . AA1*R12+2.*AA1*RE12+4.*AA3*R32)*FA1133-2.*E**(2.*AA1
+     . *R12+2.*AA1*RE12+3.*AA3*R32+AA3*RE32)*COS(RHO)*
+     . F2A113+E**(2.*AA1*R12+2.*AA1*RE12+3.*AA3*R32+AA3*
+     . RE32)*F1A113+2.*E**(2.*AA1*R12+2.*AA1*RE12+3.*AA3*
+     . R32+AA3*RE32)*F2A113+3.*E**(2.*AA1*R12+2.*AA1*RE12+
+     . 3.*AA3*R32+AA3*RE32)*FA1113+ANS16
+      ANS14=-2.*E**(3.*AA1*R12+AA1*RE12+3.*AA3*R32+AA3*RE32
+     . )*F1A133-4.*E**(3.*AA1*R12+AA1*RE12+3.*AA3*R32+AA3*
+     . RE32)*F2A133-3.*E**(3.*AA1*R12+AA1*RE12+3.*AA3*R32+
+     . AA3*RE32)*FA1113-3.*E**(3.*AA1*R12+AA1*RE12+3.*AA3*
+     . R32+AA3*RE32)*FA1333-4.*E**(3.*AA1*R12+AA1*RE12+3.*
+     . AA3*R32+AA3*RE32)*FA1133-2.*E**(3.*AA1*R12+AA1*RE12+
+     . 2.*AA3*R32+2.*AA3*RE32)*COS(RHO)*F2A133+E**(3.*AA1*
+     . R12+AA1*RE12+2.*AA3*R32+2.*AA3*RE32)*F1A133+2.*E**(
+     . 3.*AA1*R12+AA1*RE12+2.*AA3*R32+2.*AA3*RE32)*F2A133+3.
+     . *E**(3.*AA1*R12+AA1*RE12+2.*AA3*R32+2.*AA3*RE32)*
+     . FA1333+2.*E**(3.*AA1*R12+AA1*RE12+2.*AA3*R32+2.*AA3*
+     . RE32)*FA1133-E**(3.*AA1*R12+AA1*RE12+AA3*R32+3.*AA3*
+     . RE32)*FA1333-3.*E**(2.*AA1*R12+2.*AA1*RE12+4.*AA3*
+     . R32)*COS(RHO)**2*F3A11+2.*E**(2.*AA1*R12+2.*AA1*RE12
+     . +4.*AA3*R32)*COS(RHO)*F2A11+6.*E**(2.*AA1*R12+2.*AA1
+     . *RE12+4.*AA3*R32)*COS(RHO)*F3A11+ANS15
+      ANS13=2.*E**(3.*AA1*R12+AA1*RE12+4.*AA3*R32)*F2A133+
+     . 4.*E**(3.*AA1*R12+AA1*RE12+4.*AA3*R32)*FA1111+3.*E**(
+     . 3.*AA1*R12+AA1*RE12+4.*AA3*R32)*FA1113+E**(3.*AA1*R12
+     . +AA1*RE12+4.*AA3*R32)*FA1333+2.*E**(3.*AA1*R12+AA1*
+     . RE12+4.*AA3*R32)*FA1133-3.*E**(3.*AA1*R12+AA1*RE12+
+     . 3.*AA3*R32+AA3*RE32)*COS(RHO)**2*F3A13+2.*E**(3.*AA1*
+     . R12+AA1*RE12+3.*AA3*R32+AA3*RE32)*COS(RHO)*F2A13+6.*
+     . E**(3.*AA1*R12+AA1*RE12+3.*AA3*R32+AA3*RE32)*COS(RHO
+     . )*F3A13+4.*E**(3.*AA1*R12+AA1*RE12+3.*AA3*R32+AA3*
+     . RE32)*COS(RHO)*F2A113+4.*E**(3.*AA1*R12+AA1*RE12+3.*
+     . AA3*R32+AA3*RE32)*COS(RHO)*F2A133-E**(3.*AA1*R12+AA1
+     . *RE12+3.*AA3*R32+AA3*RE32)*F1A13-2.*E**(3.*AA1*R12+
+     . AA1*RE12+3.*AA3*R32+AA3*RE32)*F2A13-3.*E**(3.*AA1*
+     . R12+AA1*RE12+3.*AA3*R32+AA3*RE32)*F3A13-2.*E**(3.*
+     . AA1*R12+AA1*RE12+3.*AA3*R32+AA3*RE32)*F1A113-4.*E**(
+     . 3.*AA1*R12+AA1*RE12+3.*AA3*R32+AA3*RE32)*F2A113+ANS14
+      ANS12=-6.*E**(3.*AA1*R12+AA1*RE12+4.*AA3*R32)*COS(RHO
+     . )*F2A111-4.*E**(3.*AA1*R12+AA1*RE12+4.*AA3*R32)*COS(
+     . RHO)*F2A113-2.*E**(3.*AA1*R12+AA1*RE12+4.*AA3*R32)*
+     . COS(RHO)*F2A133+E**(3.*AA1*R12+AA1*RE12+4.*AA3*R32)*
+     . F1A1+2.*E**(3.*AA1*R12+AA1*RE12+4.*AA3*R32)*F2A1+3.*
+     . E**(3.*AA1*R12+AA1*RE12+4.*AA3*R32)*F3A1+4.*E**(3.*
+     . AA1*R12+AA1*RE12+4.*AA3*R32)*F4A1+2.*E**(3.*AA1*R12+
+     . AA1*RE12+4.*AA3*R32)*F1A11+4.*E**(3.*AA1*R12+AA1*
+     . RE12+4.*AA3*R32)*F2A11+6.*E**(3.*AA1*R12+AA1*RE12+4.
+     . *AA3*R32)*F3A11+E**(3.*AA1*R12+AA1*RE12+4.*AA3*R32)*
+     . F1A13+2.*E**(3.*AA1*R12+AA1*RE12+4.*AA3*R32)*F2A13+
+     . 3.*E**(3.*AA1*R12+AA1*RE12+4.*AA3*R32)*F3A13+3.*E**(
+     . 3.*AA1*R12+AA1*RE12+4.*AA3*R32)*F1A111+6.*E**(3.*AA1*
+     . R12+AA1*RE12+4.*AA3*R32)*F2A111+2.*E**(3.*AA1*R12+
+     . AA1*RE12+4.*AA3*R32)*F1A113+4.*E**(3.*AA1*R12+AA1*
+     . RE12+4.*AA3*R32)*F2A113+E**(3.*AA1*R12+AA1*RE12+4.*
+     . AA3*R32)*F1A133+ANS13
+      ANS11=4.*E**(4.*AA1*R12+AA3*R32+3.*AA3*RE32)*FA3333+E
+     . **(4.*AA1*R12+AA3*R32+3.*AA3*RE32)*FA1333-E**(4.*AA1
+     . *R12+4.*AA3*RE32)*FA3333-4.*E**(3.*AA1*R12+AA1*RE12+
+     . 4.*AA3*R32)*COS(RHO)**3*F4A1+3.*E**(3.*AA1*R12+AA1*
+     . RE12+4.*AA3*R32)*COS(RHO)**2*F3A1+12.*E**(3.*AA1*R12
+     . +AA1*RE12+4.*AA3*R32)*COS(RHO)**2*F4A1+6.*E**(3.*AA1
+     . *R12+AA1*RE12+4.*AA3*R32)*COS(RHO)**2*F3A11+3.*E**(
+     . 3.*AA1*R12+AA1*RE12+4.*AA3*R32)*COS(RHO)**2*F3A13-2.*
+     . E**(3.*AA1*R12+AA1*RE12+4.*AA3*R32)*COS(RHO)*F2A1-6.
+     . *E**(3.*AA1*R12+AA1*RE12+4.*AA3*R32)*COS(RHO)*F3A1-
+     . 12.*E**(3.*AA1*R12+AA1*RE12+4.*AA3*R32)*COS(RHO)*F4A1
+     . -4.*E**(3.*AA1*R12+AA1*RE12+4.*AA3*R32)*COS(RHO)*
+     . F2A11-12.*E**(3.*AA1*R12+AA1*RE12+4.*AA3*R32)*COS(
+     . RHO)*F3A11-2.*E**(3.*AA1*R12+AA1*RE12+4.*AA3*R32)*
+     . COS(RHO)*F2A13-6.*E**(3.*AA1*R12+AA1*RE12+4.*AA3*R32
+     . )*COS(RHO)*F3A13+ANS12
+      ANS10=6.*E**(4.*AA1*R12+2.*AA3*R32+2.*AA3*RE32)*COS(
+     . RHO)*F3A33+6.*E**(4.*AA1*R12+2.*AA3*R32+2.*AA3*RE32)
+     . *COS(RHO)*F2A333+2.*E**(4.*AA1*R12+2.*AA3*R32+2.*AA3
+     . *RE32)*COS(RHO)*F2A133-E**(4.*AA1*R12+2.*AA3*R32+2.*
+     . AA3*RE32)*F1A33-2.*E**(4.*AA1*R12+2.*AA3*R32+2.*AA3*
+     . RE32)*F2A33-3.*E**(4.*AA1*R12+2.*AA3*R32+2.*AA3*RE32
+     . )*F3A33-3.*E**(4.*AA1*R12+2.*AA3*R32+2.*AA3*RE32)*
+     . F1A333-6.*E**(4.*AA1*R12+2.*AA3*R32+2.*AA3*RE32)*
+     . F2A333-E**(4.*AA1*R12+2.*AA3*R32+2.*AA3*RE32)*F1A133
+     . -2.*E**(4.*AA1*R12+2.*AA3*R32+2.*AA3*RE32)*F2A133-6.
+     . *E**(4.*AA1*R12+2.*AA3*R32+2.*AA3*RE32)*FA3333-3.*E
+     . **(4.*AA1*R12+2.*AA3*R32+2.*AA3*RE32)*FA1333-E**(4.*
+     . AA1*R12+2.*AA3*R32+2.*AA3*RE32)*FA1133-2.*E**(4.*AA1
+     . *R12+AA3*R32+3.*AA3*RE32)*COS(RHO)*F2A333+E**(4.*AA1
+     . *R12+AA3*R32+3.*AA3*RE32)*F1A333+2.*E**(4.*AA1*R12+
+     . AA3*R32+3.*AA3*RE32)*F2A333+ANS11
+      ANS9=4.*E**(4.*AA1*R12+3.*AA3*R32+AA3*RE32)*F2A33+6.*
+     . E**(4.*AA1*R12+3.*AA3*R32+AA3*RE32)*F3A33+E**(4.*AA1
+     . *R12+3.*AA3*R32+AA3*RE32)*F1A13+2.*E**(4.*AA1*R12+3.
+     . *AA3*R32+AA3*RE32)*F2A13+3.*E**(4.*AA1*R12+3.*AA3*
+     . R32+AA3*RE32)*F3A13+3.*E**(4.*AA1*R12+3.*AA3*R32+AA3
+     . *RE32)*F1A333+6.*E**(4.*AA1*R12+3.*AA3*R32+AA3*RE32)
+     . *F2A333+E**(4.*AA1*R12+3.*AA3*R32+AA3*RE32)*F1A113+
+     . 2.*E**(4.*AA1*R12+3.*AA3*R32+AA3*RE32)*F2A113+2.*E**(
+     . 4.*AA1*R12+3.*AA3*R32+AA3*RE32)*F1A133+4.*E**(4.*AA1*
+     . R12+3.*AA3*R32+AA3*RE32)*F2A133+4.*E**(4.*AA1*R12+3.
+     . *AA3*R32+AA3*RE32)*FA3333+E**(4.*AA1*R12+3.*AA3*R32+
+     . AA3*RE32)*FA1113+3.*E**(4.*AA1*R12+3.*AA3*R32+AA3*
+     . RE32)*FA1333+2.*E**(4.*AA1*R12+3.*AA3*R32+AA3*RE32)*
+     . FA1133-3.*E**(4.*AA1*R12+2.*AA3*R32+2.*AA3*RE32)*COS
+     . (RHO)**2*F3A33+2.*E**(4.*AA1*R12+2.*AA3*R32+2.*AA3*
+     . RE32)*COS(RHO)*F2A33+ANS10
+      ANS8=3.*E**(4.*AA1*R12+3.*AA3*R32+AA3*RE32)*COS(RHO)
+     . **2*F3A13-2.*E**(4.*AA1*R12+3.*AA3*R32+AA3*RE32)*COS
+     . (RHO)*F2A3-6.*E**(4.*AA1*R12+3.*AA3*R32+AA3*RE32)*
+     . COS(RHO)*F3A3-12.*E**(4.*AA1*R12+3.*AA3*R32+AA3*RE32
+     . )*COS(RHO)*F4A3-4.*E**(4.*AA1*R12+3.*AA3*R32+AA3*
+     . RE32)*COS(RHO)*F2A33-12.*E**(4.*AA1*R12+3.*AA3*R32+
+     . AA3*RE32)*COS(RHO)*F3A33-2.*E**(4.*AA1*R12+3.*AA3*
+     . R32+AA3*RE32)*COS(RHO)*F2A13-6.*E**(4.*AA1*R12+3.*
+     . AA3*R32+AA3*RE32)*COS(RHO)*F3A13-6.*E**(4.*AA1*R12+
+     . 3.*AA3*R32+AA3*RE32)*COS(RHO)*F2A333-2.*E**(4.*AA1*
+     . R12+3.*AA3*R32+AA3*RE32)*COS(RHO)*F2A113-4.*E**(4.*
+     . AA1*R12+3.*AA3*R32+AA3*RE32)*COS(RHO)*F2A133+E**(4.*
+     . AA1*R12+3.*AA3*R32+AA3*RE32)*F1A3+2.*E**(4.*AA1*R12+
+     . 3.*AA3*R32+AA3*RE32)*F2A3+3.*E**(4.*AA1*R12+3.*AA3*
+     . R32+AA3*RE32)*F3A3+4.*E**(4.*AA1*R12+3.*AA3*R32+AA3*
+     . RE32)*F4A3+2.*E**(4.*AA1*R12+3.*AA3*R32+AA3*RE32)*
+     . F1A33+ANS9
+      ANS7=-2.*E**(4.*AA1*R12+4.*AA3*R32)*F2A113-E**(4.*AA1
+     . *R12+4.*AA3*R32)*F1A133-2.*E**(4.*AA1*R12+4.*AA3*R32
+     . )*F2A133-E**(4.*AA1*R12+4.*AA3*R32)*FA1111-E**(4.*
+     . AA1*R12+4.*AA3*R32)*FA3333-E**(4.*AA1*R12+4.*AA3*R32
+     . )*FA1113-E**(4.*AA1*R12+4.*AA3*R32)*FA1333-E**(4.*
+     . AA1*R12+4.*AA3*R32)*FA1133-E**(4.*AA1*R12+4.*AA3*R32
+     . )*FA1-2.*E**(4.*AA1*R12+4.*AA3*R32)*FA2-3.*E**(4.*
+     . AA1*R12+4.*AA3*R32)*FA3-4.*E**(4.*AA1*R12+4.*AA3*R32
+     . )*FA4-5.*E**(4.*AA1*R12+4.*AA3*R32)*FA5-6.*E**(4.*
+     . AA1*R12+4.*AA3*R32)*FA6-7.*E**(4.*AA1*R12+4.*AA3*R32
+     . )*FA7-8.*E**(4.*AA1*R12+4.*AA3*R32)*FA8-4.*E**(4.*
+     . AA1*R12+3.*AA3*R32+AA3*RE32)*COS(RHO)**3*F4A3+3.*E**
+     . (4.*AA1*R12+3.*AA3*R32+AA3*RE32)*COS(RHO)**2*F3A3+
+     . 12.*E**(4.*AA1*R12+3.*AA3*R32+AA3*RE32)*COS(RHO)**2*
+     . F4A3+6.*E**(4.*AA1*R12+3.*AA3*R32+AA3*RE32)*COS(RHO)
+     . **2*F3A33+ANS8
+      ANS6=-E**(4.*AA1*R12+4.*AA3*R32)*F1A1-2.*E**(4.*AA1*
+     . R12+4.*AA3*R32)*F2A1-3.*E**(4.*AA1*R12+4.*AA3*R32)*
+     . F3A1-4.*E**(4.*AA1*R12+4.*AA3*R32)*F4A1-E**(4.*AA1*
+     . R12+4.*AA3*R32)*F1A3-2.*E**(4.*AA1*R12+4.*AA3*R32)*
+     . F2A3-3.*E**(4.*AA1*R12+4.*AA3*R32)*F3A3-4.*E**(4.*
+     . AA1*R12+4.*AA3*R32)*F4A3-E**(4.*AA1*R12+4.*AA3*R32)*
+     . F1A11-2.*E**(4.*AA1*R12+4.*AA3*R32)*F2A11-3.*E**(4.*
+     . AA1*R12+4.*AA3*R32)*F3A11-E**(4.*AA1*R12+4.*AA3*R32)
+     . *F1A33-2.*E**(4.*AA1*R12+4.*AA3*R32)*F2A33-3.*E**(4.
+     . *AA1*R12+4.*AA3*R32)*F3A33-E**(4.*AA1*R12+4.*AA3*R32
+     . )*F1A13-2.*E**(4.*AA1*R12+4.*AA3*R32)*F2A13-3.*E**(
+     . 4.*AA1*R12+4.*AA3*R32)*F3A13-E**(4.*AA1*R12+4.*AA3*
+     . R32)*F1A111-2.*E**(4.*AA1*R12+4.*AA3*R32)*F2A111-E**
+     . (4.*AA1*R12+4.*AA3*R32)*F1A333-2.*E**(4.*AA1*R12+4.*
+     . AA3*R32)*F2A333-E**(4.*AA1*R12+4.*AA3*R32)*F1A113+
+     . ANS7
+      ANS5=6.*E**(4.*AA1*R12+4.*AA3*R32)*COS(RHO)*F3A3+12.*
+     . E**(4.*AA1*R12+4.*AA3*R32)*COS(RHO)*F4A3+2.*E**(4.*
+     . AA1*R12+4.*AA3*R32)*COS(RHO)*F2A11+6.*E**(4.*AA1*R12
+     . +4.*AA3*R32)*COS(RHO)*F3A11+2.*E**(4.*AA1*R12+4.*AA3
+     . *R32)*COS(RHO)*F2A33+6.*E**(4.*AA1*R12+4.*AA3*R32)*
+     . COS(RHO)*F3A33+2.*E**(4.*AA1*R12+4.*AA3*R32)*COS(RHO
+     . )*F2A13+6.*E**(4.*AA1*R12+4.*AA3*R32)*COS(RHO)*F3A13
+     . +2.*E**(4.*AA1*R12+4.*AA3*R32)*COS(RHO)*F2A111+2.*E
+     . **(4.*AA1*R12+4.*AA3*R32)*COS(RHO)*F2A333+2.*E**(4.*
+     . AA1*R12+4.*AA3*R32)*COS(RHO)*F2A113+2.*E**(4.*AA1*
+     . R12+4.*AA3*R32)*COS(RHO)*F2A133+2.*E**(4.*AA1*R12+4.
+     . *AA3*R32)*COS(RHO)*FA2+6.*E**(4.*AA1*R12+4.*AA3*R32)
+     . *COS(RHO)*FA3+12.*E**(4.*AA1*R12+4.*AA3*R32)*COS(RHO
+     . )*FA4+20.*E**(4.*AA1*R12+4.*AA3*R32)*COS(RHO)*FA5+
+     . 30.*E**(4.*AA1*R12+4.*AA3*R32)*COS(RHO)*FA6+42.*E**(
+     . 4.*AA1*R12+4.*AA3*R32)*COS(RHO)*FA7+56.*E**(4.*AA1*
+     . R12+4.*AA3*R32)*COS(RHO)*FA8+ANS6
+      ANS4=-3.*E**(4.*AA1*R12+4.*AA3*R32)*COS(RHO)**2*F3A1-
+     . 12.*E**(4.*AA1*R12+4.*AA3*R32)*COS(RHO)**2*F4A1-3.*E
+     . **(4.*AA1*R12+4.*AA3*R32)*COS(RHO)**2*F3A3-12.*E**(
+     . 4.*AA1*R12+4.*AA3*R32)*COS(RHO)**2*F4A3-3.*E**(4.*AA1
+     . *R12+4.*AA3*R32)*COS(RHO)**2*F3A11-3.*E**(4.*AA1*R12
+     . +4.*AA3*R32)*COS(RHO)**2*F3A33-3.*E**(4.*AA1*R12+4.*
+     . AA3*R32)*COS(RHO)**2*F3A13-3.*E**(4.*AA1*R12+4.*AA3*
+     . R32)*COS(RHO)**2*FA3-12.*E**(4.*AA1*R12+4.*AA3*R32)*
+     . COS(RHO)**2*FA4-30.*E**(4.*AA1*R12+4.*AA3*R32)*COS(
+     . RHO)**2*FA5-60.*E**(4.*AA1*R12+4.*AA3*R32)*COS(RHO)
+     . **2*FA6-105.*E**(4.*AA1*R12+4.*AA3*R32)*COS(RHO)**2*
+     . FA7-168.*E**(4.*AA1*R12+4.*AA3*R32)*COS(RHO)**2*FA8+
+     . 2.*E**(4.*AA1*R12+4.*AA3*R32)*COS(RHO)*F2A1+6.*E**(4.
+     . *AA1*R12+4.*AA3*R32)*COS(RHO)*F3A1+12.*E**(4.*AA1*
+     . R12+4.*AA3*R32)*COS(RHO)*F4A1+2.*E**(4.*AA1*R12+4.*
+     . AA3*R32)*COS(RHO)*F2A3+ANS5
+      ANS3=8.*E**(4.*AA1*R12+4.*AA3*R32)*COS(RHO)**7*FA8-7.
+     . *E**(4.*AA1*R12+4.*AA3*R32)*COS(RHO)**6*FA7-56.*E**(
+     . 4.*AA1*R12+4.*AA3*R32)*COS(RHO)**6*FA8+6.*E**(4.*AA1*
+     . R12+4.*AA3*R32)*COS(RHO)**5*FA6+42.*E**(4.*AA1*R12+
+     . 4.*AA3*R32)*COS(RHO)**5*FA7+168.*E**(4.*AA1*R12+4.*
+     . AA3*R32)*COS(RHO)**5*FA8-5.*E**(4.*AA1*R12+4.*AA3*
+     . R32)*COS(RHO)**4*FA5-30.*E**(4.*AA1*R12+4.*AA3*R32)*
+     . COS(RHO)**4*FA6-105.*E**(4.*AA1*R12+4.*AA3*R32)*COS(
+     . RHO)**4*FA7-280.*E**(4.*AA1*R12+4.*AA3*R32)*COS(RHO)
+     . **4*FA8+4.*E**(4.*AA1*R12+4.*AA3*R32)*COS(RHO)**3*
+     . F4A1+4.*E**(4.*AA1*R12+4.*AA3*R32)*COS(RHO)**3*F4A3+
+     . 4.*E**(4.*AA1*R12+4.*AA3*R32)*COS(RHO)**3*FA4+20.*E**
+     . (4.*AA1*R12+4.*AA3*R32)*COS(RHO)**3*FA5+60.*E**(4.*
+     . AA1*R12+4.*AA3*R32)*COS(RHO)**3*FA6+140.*E**(4.*AA1*
+     . R12+4.*AA3*R32)*COS(RHO)**3*FA7+280.*E**(4.*AA1*R12+
+     . 4.*AA3*R32)*COS(RHO)**3*FA8+ANS4
+      ANS2=SIN(RHO)*ANS3
+      ANS1=ANS2/E**(4.*AA1*R12+4.*AA3*R32)
+      GOUT(3)=-ANS1
+C
+C
+      ANS13=16.*E**(3.*AA1*RE12+3.*AA3*R32)*COS(RHO)*FA1111
+     . -16.*E**(3.*AA1*RE12+3.*AA3*R32)*F1111-16.*E**(3.*
+     . AA1*RE12+3.*AA3*R32)*FA1111
+      ANS12=-4.*E**(2.*AA1*R12+AA1*RE12+AA3*R32+2.*AA3*RE32
+     . )*FA1133+9.*E**(AA1*R12+2.*AA1*RE12+3.*AA3*R32)*COS(
+     . RHO)**2*F2A111-9.*E**(AA1*R12+2.*AA1*RE12+3.*AA3*R32
+     . )*COS(RHO)*F1A111-18.*E**(AA1*R12+2.*AA1*RE12+3.*AA3
+     . *R32)*COS(RHO)*F2A111-36.*E**(AA1*R12+2.*AA1*RE12+3.
+     . *AA3*R32)*COS(RHO)*FA1111-9.*E**(AA1*R12+2.*AA1*RE12
+     . +3.*AA3*R32)*COS(RHO)*FA1113+9.*E**(AA1*R12+2.*AA1*
+     . RE12+3.*AA3*R32)*F111+9.*E**(AA1*R12+2.*AA1*RE12+3.*
+     . AA3*R32)*F1A111+9.*E**(AA1*R12+2.*AA1*RE12+3.*AA3*
+     . R32)*F2A111+36.*E**(AA1*R12+2.*AA1*RE12+3.*AA3*R32)*
+     . F1111+36.*E**(AA1*R12+2.*AA1*RE12+3.*AA3*R32)*FA1111
+     . +9.*E**(AA1*R12+2.*AA1*RE12+3.*AA3*R32)*F1113+9.*E**
+     . (AA1*R12+2.*AA1*RE12+3.*AA3*R32)*FA1113+9.*E**(AA1*
+     . R12+2.*AA1*RE12+2.*AA3*R32+AA3*RE32)*COS(RHO)*FA1113
+     . -9.*E**(AA1*R12+2.*AA1*RE12+2.*AA3*R32+AA3*RE32)*
+     . F1113-9.*E**(AA1*R12+2.*AA1*RE12+2.*AA3*R32+AA3*RE32
+     . )*FA1113+ANS13
+      ANS11=4.*E**(2.*AA1*R12+AA1*RE12+2.*AA3*R32+AA3*RE32)
+     . *COS(RHO)**2*F2A113-4.*E**(2.*AA1*R12+AA1*RE12+2.*
+     . AA3*R32+AA3*RE32)*COS(RHO)*F1A113-8.*E**(2.*AA1*R12+
+     . AA1*RE12+2.*AA3*R32+AA3*RE32)*COS(RHO)*F2A113-12.*E
+     . **(2.*AA1*R12+AA1*RE12+2.*AA3*R32+AA3*RE32)*COS(RHO)
+     . *FA1113-8.*E**(2.*AA1*R12+AA1*RE12+2.*AA3*R32+AA3*
+     . RE32)*COS(RHO)*FA1133+4.*E**(2.*AA1*R12+AA1*RE12+2.*
+     . AA3*R32+AA3*RE32)*F113+4.*E**(2.*AA1*R12+AA1*RE12+2.
+     . *AA3*R32+AA3*RE32)*F1A113+4.*E**(2.*AA1*R12+AA1*RE12
+     . +2.*AA3*R32+AA3*RE32)*F2A113+12.*E**(2.*AA1*R12+AA1*
+     . RE12+2.*AA3*R32+AA3*RE32)*F1113+12.*E**(2.*AA1*R12+
+     . AA1*RE12+2.*AA3*R32+AA3*RE32)*FA1113+8.*E**(2.*AA1*
+     . R12+AA1*RE12+2.*AA3*R32+AA3*RE32)*F1133+8.*E**(2.*
+     . AA1*R12+AA1*RE12+2.*AA3*R32+AA3*RE32)*FA1133+4.*E**(
+     . 2.*AA1*R12+AA1*RE12+AA3*R32+2.*AA3*RE32)*COS(RHO)*
+     . FA1133-4.*E**(2.*AA1*R12+AA1*RE12+AA3*R32+2.*AA3*
+     . RE32)*F1133+ANS12
+      ANS10=4.*E**(2.*AA1*R12+AA1*RE12+3.*AA3*R32)*COS(RHO)
+     . *FA1133-4.*E**(2.*AA1*R12+AA1*RE12+3.*AA3*R32)*F11-
+     . 4.*E**(2.*AA1*R12+AA1*RE12+3.*AA3*R32)*F1A11-4.*E**(
+     . 2.*AA1*R12+AA1*RE12+3.*AA3*R32)*F2A11-4.*E**(2.*AA1*
+     . R12+AA1*RE12+3.*AA3*R32)*F3A11-12.*E**(2.*AA1*R12+
+     . AA1*RE12+3.*AA3*R32)*F111-12.*E**(2.*AA1*R12+AA1*
+     . RE12+3.*AA3*R32)*F1A111-12.*E**(2.*AA1*R12+AA1*RE12+
+     . 3.*AA3*R32)*F2A111-4.*E**(2.*AA1*R12+AA1*RE12+3.*AA3*
+     . R32)*F113-4.*E**(2.*AA1*R12+AA1*RE12+3.*AA3*R32)*
+     . F1A113-4.*E**(2.*AA1*R12+AA1*RE12+3.*AA3*R32)*F2A113
+     . -24.*E**(2.*AA1*R12+AA1*RE12+3.*AA3*R32)*F1111-24.*E
+     . **(2.*AA1*R12+AA1*RE12+3.*AA3*R32)*FA1111-12.*E**(2.
+     . *AA1*R12+AA1*RE12+3.*AA3*R32)*F1113-12.*E**(2.*AA1*
+     . R12+AA1*RE12+3.*AA3*R32)*FA1113-4.*E**(2.*AA1*R12+
+     . AA1*RE12+3.*AA3*R32)*F1133-4.*E**(2.*AA1*R12+AA1*
+     . RE12+3.*AA3*R32)*FA1133+ANS11
+      ANS9=-E**(3.*AA1*R12+3.*AA3*RE32)*FA1333+4.*E**(2.*
+     . AA1*R12+AA1*RE12+3.*AA3*R32)*COS(RHO)**3*F3A11-4.*E
+     . **(2.*AA1*R12+AA1*RE12+3.*AA3*R32)*COS(RHO)**2*F2A11
+     . -12.*E**(2.*AA1*R12+AA1*RE12+3.*AA3*R32)*COS(RHO)**2
+     . *F3A11-12.*E**(2.*AA1*R12+AA1*RE12+3.*AA3*R32)*COS(
+     . RHO)**2*F2A111-4.*E**(2.*AA1*R12+AA1*RE12+3.*AA3*R32
+     . )*COS(RHO)**2*F2A113+4.*E**(2.*AA1*R12+AA1*RE12+3.*
+     . AA3*R32)*COS(RHO)*F1A11+8.*E**(2.*AA1*R12+AA1*RE12+
+     . 3.*AA3*R32)*COS(RHO)*F2A11+12.*E**(2.*AA1*R12+AA1*
+     . RE12+3.*AA3*R32)*COS(RHO)*F3A11+12.*E**(2.*AA1*R12+
+     . AA1*RE12+3.*AA3*R32)*COS(RHO)*F1A111+24.*E**(2.*AA1*
+     . R12+AA1*RE12+3.*AA3*R32)*COS(RHO)*F2A111+4.*E**(2.*
+     . AA1*R12+AA1*RE12+3.*AA3*R32)*COS(RHO)*F1A113+8.*E**(
+     . 2.*AA1*R12+AA1*RE12+3.*AA3*R32)*COS(RHO)*F2A113+24.*E
+     . **(2.*AA1*R12+AA1*RE12+3.*AA3*R32)*COS(RHO)*FA1111+
+     . 12.*E**(2.*AA1*R12+AA1*RE12+3.*AA3*R32)*COS(RHO)*
+     . FA1113+ANS10
+      ANS8=-3.*E**(3.*AA1*R12+2.*AA3*R32+AA3*RE32)*FA1333-
+     . 4.*E**(3.*AA1*R12+2.*AA3*R32+AA3*RE32)*F1133-4.*E**(
+     . 3.*AA1*R12+2.*AA3*R32+AA3*RE32)*FA1133+E**(3.*AA1*R12
+     . +AA3*R32+2.*AA3*RE32)*COS(RHO)**2*F2A133-E**(3.*AA1*
+     . R12+AA3*R32+2.*AA3*RE32)*COS(RHO)*F1A133-2.*E**(3.*
+     . AA1*R12+AA3*R32+2.*AA3*RE32)*COS(RHO)*F2A133-3.*E**(
+     . 3.*AA1*R12+AA3*R32+2.*AA3*RE32)*COS(RHO)*FA1333-2.*E
+     . **(3.*AA1*R12+AA3*R32+2.*AA3*RE32)*COS(RHO)*FA1133+E
+     . **(3.*AA1*R12+AA3*R32+2.*AA3*RE32)*F133+E**(3.*AA1*
+     . R12+AA3*R32+2.*AA3*RE32)*F1A133+E**(3.*AA1*R12+AA3*
+     . R32+2.*AA3*RE32)*F2A133+3.*E**(3.*AA1*R12+AA3*R32+2.
+     . *AA3*RE32)*F1333+3.*E**(3.*AA1*R12+AA3*R32+2.*AA3*
+     . RE32)*FA1333+2.*E**(3.*AA1*R12+AA3*R32+2.*AA3*RE32)*
+     . F1133+2.*E**(3.*AA1*R12+AA3*R32+2.*AA3*RE32)*FA1133+
+     . E**(3.*AA1*R12+3.*AA3*RE32)*COS(RHO)*FA1333-E**(3.*
+     . AA1*R12+3.*AA3*RE32)*F1333+ANS9
+      ANS7=4.*E**(3.*AA1*R12+2.*AA3*R32+AA3*RE32)*COS(RHO)*
+     . F2A133+3.*E**(3.*AA1*R12+2.*AA3*R32+AA3*RE32)*COS(
+     . RHO)*FA1113+3.*E**(3.*AA1*R12+2.*AA3*R32+AA3*RE32)*
+     . COS(RHO)*FA1333+4.*E**(3.*AA1*R12+2.*AA3*R32+AA3*
+     . RE32)*COS(RHO)*FA1133-E**(3.*AA1*R12+2.*AA3*R32+AA3*
+     . RE32)*F13-E**(3.*AA1*R12+2.*AA3*R32+AA3*RE32)*F1A13-
+     . E**(3.*AA1*R12+2.*AA3*R32+AA3*RE32)*F2A13-E**(3.*AA1
+     . *R12+2.*AA3*R32+AA3*RE32)*F3A13-2.*E**(3.*AA1*R12+2.
+     . *AA3*R32+AA3*RE32)*F113-2.*E**(3.*AA1*R12+2.*AA3*R32
+     . +AA3*RE32)*F1A113-2.*E**(3.*AA1*R12+2.*AA3*R32+AA3*
+     . RE32)*F2A113-2.*E**(3.*AA1*R12+2.*AA3*R32+AA3*RE32)*
+     . F133-2.*E**(3.*AA1*R12+2.*AA3*R32+AA3*RE32)*F1A133-
+     . 2.*E**(3.*AA1*R12+2.*AA3*R32+AA3*RE32)*F2A133-3.*E**(
+     . 3.*AA1*R12+2.*AA3*R32+AA3*RE32)*F1113-3.*E**(3.*AA1*
+     . R12+2.*AA3*R32+AA3*RE32)*FA1113-3.*E**(3.*AA1*R12+2.
+     . *AA3*R32+AA3*RE32)*F1333+ANS8
+      ANS6=3.*E**(3.*AA1*R12+3.*AA3*R32)*F1113+3.*E**(3.*
+     . AA1*R12+3.*AA3*R32)*FA1113+E**(3.*AA1*R12+3.*AA3*R32
+     . )*F1333+E**(3.*AA1*R12+3.*AA3*R32)*FA1333+2.*E**(3.*
+     . AA1*R12+3.*AA3*R32)*F1133+2.*E**(3.*AA1*R12+3.*AA3*
+     . R32)*FA1133+E**(3.*AA1*R12+2.*AA3*R32+AA3*RE32)*COS(
+     . RHO)**3*F3A13-E**(3.*AA1*R12+2.*AA3*R32+AA3*RE32)*
+     . COS(RHO)**2*F2A13-3.*E**(3.*AA1*R12+2.*AA3*R32+AA3*
+     . RE32)*COS(RHO)**2*F3A13-2.*E**(3.*AA1*R12+2.*AA3*R32
+     . +AA3*RE32)*COS(RHO)**2*F2A113-2.*E**(3.*AA1*R12+2.*
+     . AA3*R32+AA3*RE32)*COS(RHO)**2*F2A133+E**(3.*AA1*R12+
+     . 2.*AA3*R32+AA3*RE32)*COS(RHO)*F1A13+2.*E**(3.*AA1*R12
+     . +2.*AA3*R32+AA3*RE32)*COS(RHO)*F2A13+3.*E**(3.*AA1*
+     . R12+2.*AA3*R32+AA3*RE32)*COS(RHO)*F3A13+2.*E**(3.*
+     . AA1*R12+2.*AA3*R32+AA3*RE32)*COS(RHO)*F1A113+4.*E**(
+     . 3.*AA1*R12+2.*AA3*R32+AA3*RE32)*COS(RHO)*F2A113+2.*E
+     . **(3.*AA1*R12+2.*AA3*R32+AA3*RE32)*COS(RHO)*F1A133+
+     . ANS7
+      ANS5=E**(3.*AA1*R12+3.*AA3*R32)*F1+E**(3.*AA1*R12+3.*
+     . AA3*R32)*F1A1+E**(3.*AA1*R12+3.*AA3*R32)*F2A1+E**(3.
+     . *AA1*R12+3.*AA3*R32)*F3A1+E**(3.*AA1*R12+3.*AA3*R32)
+     . *F4A1+2.*E**(3.*AA1*R12+3.*AA3*R32)*F11+2.*E**(3.*
+     . AA1*R12+3.*AA3*R32)*F1A11+2.*E**(3.*AA1*R12+3.*AA3*
+     . R32)*F2A11+2.*E**(3.*AA1*R12+3.*AA3*R32)*F3A11+E**(
+     . 3.*AA1*R12+3.*AA3*R32)*F13+E**(3.*AA1*R12+3.*AA3*R32)
+     . *F1A13+E**(3.*AA1*R12+3.*AA3*R32)*F2A13+E**(3.*AA1*
+     . R12+3.*AA3*R32)*F3A13+3.*E**(3.*AA1*R12+3.*AA3*R32)*
+     . F111+3.*E**(3.*AA1*R12+3.*AA3*R32)*F1A111+3.*E**(3.*
+     . AA1*R12+3.*AA3*R32)*F2A111+2.*E**(3.*AA1*R12+3.*AA3*
+     . R32)*F113+2.*E**(3.*AA1*R12+3.*AA3*R32)*F1A113+2.*E
+     . **(3.*AA1*R12+3.*AA3*R32)*F2A113+E**(3.*AA1*R12+3.*
+     . AA3*R32)*F133+E**(3.*AA1*R12+3.*AA3*R32)*F1A133+E**(
+     . 3.*AA1*R12+3.*AA3*R32)*F2A133+4.*E**(3.*AA1*R12+3.*
+     . AA3*R32)*F1111+4.*E**(3.*AA1*R12+3.*AA3*R32)*FA1111+
+     . ANS6
+      ANS4=-3.*E**(3.*AA1*R12+3.*AA3*R32)*COS(RHO)*F3A1-4.*
+     . E**(3.*AA1*R12+3.*AA3*R32)*COS(RHO)*F4A1-2.*E**(3.*
+     . AA1*R12+3.*AA3*R32)*COS(RHO)*F1A11-4.*E**(3.*AA1*R12
+     . +3.*AA3*R32)*COS(RHO)*F2A11-6.*E**(3.*AA1*R12+3.*AA3
+     . *R32)*COS(RHO)*F3A11-E**(3.*AA1*R12+3.*AA3*R32)*COS(
+     . RHO)*F1A13-2.*E**(3.*AA1*R12+3.*AA3*R32)*COS(RHO)*
+     . F2A13-3.*E**(3.*AA1*R12+3.*AA3*R32)*COS(RHO)*F3A13-
+     . 3.*E**(3.*AA1*R12+3.*AA3*R32)*COS(RHO)*F1A111-6.*E**(
+     . 3.*AA1*R12+3.*AA3*R32)*COS(RHO)*F2A111-2.*E**(3.*AA1*
+     . R12+3.*AA3*R32)*COS(RHO)*F1A113-4.*E**(3.*AA1*R12+3.
+     . *AA3*R32)*COS(RHO)*F2A113-E**(3.*AA1*R12+3.*AA3*R32)
+     . *COS(RHO)*F1A133-2.*E**(3.*AA1*R12+3.*AA3*R32)*COS(
+     . RHO)*F2A133-4.*E**(3.*AA1*R12+3.*AA3*R32)*COS(RHO)*
+     . FA1111-3.*E**(3.*AA1*R12+3.*AA3*R32)*COS(RHO)*FA1113
+     . -E**(3.*AA1*R12+3.*AA3*R32)*COS(RHO)*FA1333-2.*E**(
+     . 3.*AA1*R12+3.*AA3*R32)*COS(RHO)*FA1133+ANS5
+      ANS3=E**(3.*AA1*R12+3.*AA3*R32)*COS(RHO)**4*F4A1-E**(
+     . 3.*AA1*R12+3.*AA3*R32)*COS(RHO)**3*F3A1-4.*E**(3.*AA1
+     . *R12+3.*AA3*R32)*COS(RHO)**3*F4A1-2.*E**(3.*AA1*R12+
+     . 3.*AA3*R32)*COS(RHO)**3*F3A11-E**(3.*AA1*R12+3.*AA3*
+     . R32)*COS(RHO)**3*F3A13+E**(3.*AA1*R12+3.*AA3*R32)*
+     . COS(RHO)**2*F2A1+3.*E**(3.*AA1*R12+3.*AA3*R32)*COS(
+     . RHO)**2*F3A1+6.*E**(3.*AA1*R12+3.*AA3*R32)*COS(RHO)
+     . **2*F4A1+2.*E**(3.*AA1*R12+3.*AA3*R32)*COS(RHO)**2*
+     . F2A11+6.*E**(3.*AA1*R12+3.*AA3*R32)*COS(RHO)**2*
+     . F3A11+E**(3.*AA1*R12+3.*AA3*R32)*COS(RHO)**2*F2A13+
+     . 3.*E**(3.*AA1*R12+3.*AA3*R32)*COS(RHO)**2*F3A13+3.*E
+     . **(3.*AA1*R12+3.*AA3*R32)*COS(RHO)**2*F2A111+2.*E**(
+     . 3.*AA1*R12+3.*AA3*R32)*COS(RHO)**2*F2A113+E**(3.*AA1*
+     . R12+3.*AA3*R32)*COS(RHO)**2*F2A133-E**(3.*AA1*R12+3.
+     . *AA3*R32)*COS(RHO)*F1A1-2.*E**(3.*AA1*R12+3.*AA3*R32
+     . )*COS(RHO)*F2A1+ANS4
+      ANS2=E**(AA1*RE12)*AA1**2*ANS3
+      ANS1=ANS2/E**(4.*AA1*R12+3.*AA3*R32)
+      HOUT(1,1)=-ANS1
+C
+C
+      ANS13=E**(3.*AA1*RE12+3.*AA3*R32)*COS(RHO)*FA1113-E**
+     . (3.*AA1*RE12+3.*AA3*R32)*F1113-E**(3.*AA1*RE12+3.*
+     . AA3*R32)*FA1113
+      ANS12=-9.*E**(2.*AA1*R12+AA1*RE12+AA3*R32+2.*AA3*RE32
+     . )*FA1333+E**(AA1*R12+2.*AA1*RE12+3.*AA3*R32)*COS(RHO
+     . )**2*F2A113-E**(AA1*R12+2.*AA1*RE12+3.*AA3*R32)*COS(
+     . RHO)*F1A113-2.*E**(AA1*R12+2.*AA1*RE12+3.*AA3*R32)*
+     . COS(RHO)*F2A113-3.*E**(AA1*R12+2.*AA1*RE12+3.*AA3*
+     . R32)*COS(RHO)*FA1113-2.*E**(AA1*R12+2.*AA1*RE12+3.*
+     . AA3*R32)*COS(RHO)*FA1133+E**(AA1*R12+2.*AA1*RE12+3.*
+     . AA3*R32)*F113+E**(AA1*R12+2.*AA1*RE12+3.*AA3*R32)*
+     . F1A113+E**(AA1*R12+2.*AA1*RE12+3.*AA3*R32)*F2A113+3.
+     . *E**(AA1*R12+2.*AA1*RE12+3.*AA3*R32)*F1113+3.*E**(
+     . AA1*R12+2.*AA1*RE12+3.*AA3*R32)*FA1113+2.*E**(AA1*
+     . R12+2.*AA1*RE12+3.*AA3*R32)*F1133+2.*E**(AA1*R12+2.*
+     . AA1*RE12+3.*AA3*R32)*FA1133+4.*E**(AA1*R12+2.*AA1*
+     . RE12+2.*AA3*R32+AA3*RE32)*COS(RHO)*FA1133-4.*E**(AA1
+     . *R12+2.*AA1*RE12+2.*AA3*R32+AA3*RE32)*F1133-4.*E**(
+     . AA1*R12+2.*AA1*RE12+2.*AA3*R32+AA3*RE32)*FA1133+
+     . ANS13
+      ANS11=4.*E**(2.*AA1*R12+AA1*RE12+2.*AA3*R32+AA3*RE32)
+     . *COS(RHO)**2*F2A133-4.*E**(2.*AA1*R12+AA1*RE12+2.*
+     . AA3*R32+AA3*RE32)*COS(RHO)*F1A133-8.*E**(2.*AA1*R12+
+     . AA1*RE12+2.*AA3*R32+AA3*RE32)*COS(RHO)*F2A133-12.*E
+     . **(2.*AA1*R12+AA1*RE12+2.*AA3*R32+AA3*RE32)*COS(RHO)
+     . *FA1333-8.*E**(2.*AA1*R12+AA1*RE12+2.*AA3*R32+AA3*
+     . RE32)*COS(RHO)*FA1133+4.*E**(2.*AA1*R12+AA1*RE12+2.*
+     . AA3*R32+AA3*RE32)*F133+4.*E**(2.*AA1*R12+AA1*RE12+2.
+     . *AA3*R32+AA3*RE32)*F1A133+4.*E**(2.*AA1*R12+AA1*RE12
+     . +2.*AA3*R32+AA3*RE32)*F2A133+12.*E**(2.*AA1*R12+AA1*
+     . RE12+2.*AA3*R32+AA3*RE32)*F1333+12.*E**(2.*AA1*R12+
+     . AA1*RE12+2.*AA3*R32+AA3*RE32)*FA1333+8.*E**(2.*AA1*
+     . R12+AA1*RE12+2.*AA3*R32+AA3*RE32)*F1133+8.*E**(2.*
+     . AA1*R12+AA1*RE12+2.*AA3*R32+AA3*RE32)*FA1133+9.*E**(
+     . 2.*AA1*R12+AA1*RE12+AA3*R32+2.*AA3*RE32)*COS(RHO)*
+     . FA1333-9.*E**(2.*AA1*R12+AA1*RE12+AA3*R32+2.*AA3*
+     . RE32)*F1333+ANS12
+      ANS10=4.*E**(2.*AA1*R12+AA1*RE12+3.*AA3*R32)*COS(RHO)
+     . *FA1133-E**(2.*AA1*R12+AA1*RE12+3.*AA3*R32)*F13-E**(
+     . 2.*AA1*R12+AA1*RE12+3.*AA3*R32)*F1A13-E**(2.*AA1*R12+
+     . AA1*RE12+3.*AA3*R32)*F2A13-E**(2.*AA1*R12+AA1*RE12+
+     . 3.*AA3*R32)*F3A13-2.*E**(2.*AA1*R12+AA1*RE12+3.*AA3*
+     . R32)*F113-2.*E**(2.*AA1*R12+AA1*RE12+3.*AA3*R32)*
+     . F1A113-2.*E**(2.*AA1*R12+AA1*RE12+3.*AA3*R32)*F2A113
+     . -2.*E**(2.*AA1*R12+AA1*RE12+3.*AA3*R32)*F133-2.*E**(
+     . 2.*AA1*R12+AA1*RE12+3.*AA3*R32)*F1A133-2.*E**(2.*AA1*
+     . R12+AA1*RE12+3.*AA3*R32)*F2A133-3.*E**(2.*AA1*R12+
+     . AA1*RE12+3.*AA3*R32)*F1113-3.*E**(2.*AA1*R12+AA1*
+     . RE12+3.*AA3*R32)*FA1113-3.*E**(2.*AA1*R12+AA1*RE12+
+     . 3.*AA3*R32)*F1333-3.*E**(2.*AA1*R12+AA1*RE12+3.*AA3*
+     . R32)*FA1333-4.*E**(2.*AA1*R12+AA1*RE12+3.*AA3*R32)*
+     . F1133-4.*E**(2.*AA1*R12+AA1*RE12+3.*AA3*R32)*FA1133+
+     . ANS11
+      ANS9=-16.*E**(3.*AA1*R12+3.*AA3*RE32)*FA3333+E**(2.*
+     . AA1*R12+AA1*RE12+3.*AA3*R32)*COS(RHO)**3*F3A13-E**(
+     . 2.*AA1*R12+AA1*RE12+3.*AA3*R32)*COS(RHO)**2*F2A13-3.*
+     . E**(2.*AA1*R12+AA1*RE12+3.*AA3*R32)*COS(RHO)**2*
+     . F3A13-2.*E**(2.*AA1*R12+AA1*RE12+3.*AA3*R32)*COS(RHO
+     . )**2*F2A113-2.*E**(2.*AA1*R12+AA1*RE12+3.*AA3*R32)*
+     . COS(RHO)**2*F2A133+E**(2.*AA1*R12+AA1*RE12+3.*AA3*
+     . R32)*COS(RHO)*F1A13+2.*E**(2.*AA1*R12+AA1*RE12+3.*
+     . AA3*R32)*COS(RHO)*F2A13+3.*E**(2.*AA1*R12+AA1*RE12+
+     . 3.*AA3*R32)*COS(RHO)*F3A13+2.*E**(2.*AA1*R12+AA1*RE12
+     . +3.*AA3*R32)*COS(RHO)*F1A113+4.*E**(2.*AA1*R12+AA1*
+     . RE12+3.*AA3*R32)*COS(RHO)*F2A113+2.*E**(2.*AA1*R12+
+     . AA1*RE12+3.*AA3*R32)*COS(RHO)*F1A133+4.*E**(2.*AA1*
+     . R12+AA1*RE12+3.*AA3*R32)*COS(RHO)*F2A133+3.*E**(2.*
+     . AA1*R12+AA1*RE12+3.*AA3*R32)*COS(RHO)*FA1113+3.*E**(
+     . 2.*AA1*R12+AA1*RE12+3.*AA3*R32)*COS(RHO)*FA1333+ANS10
+      ANS8=-12.*E**(3.*AA1*R12+2.*AA3*R32+AA3*RE32)*FA1333-
+     . 4.*E**(3.*AA1*R12+2.*AA3*R32+AA3*RE32)*F1133-4.*E**(
+     . 3.*AA1*R12+2.*AA3*R32+AA3*RE32)*FA1133+9.*E**(3.*AA1*
+     . R12+AA3*R32+2.*AA3*RE32)*COS(RHO)**2*F2A333-9.*E**(
+     . 3.*AA1*R12+AA3*R32+2.*AA3*RE32)*COS(RHO)*F1A333-18.*E
+     . **(3.*AA1*R12+AA3*R32+2.*AA3*RE32)*COS(RHO)*F2A333-
+     . 36.*E**(3.*AA1*R12+AA3*R32+2.*AA3*RE32)*COS(RHO)*
+     . FA3333-9.*E**(3.*AA1*R12+AA3*R32+2.*AA3*RE32)*COS(
+     . RHO)*FA1333+9.*E**(3.*AA1*R12+AA3*R32+2.*AA3*RE32)*
+     . F333+9.*E**(3.*AA1*R12+AA3*R32+2.*AA3*RE32)*F1A333+
+     . 9.*E**(3.*AA1*R12+AA3*R32+2.*AA3*RE32)*F2A333+36.*E**
+     . (3.*AA1*R12+AA3*R32+2.*AA3*RE32)*F3333+36.*E**(3.*
+     . AA1*R12+AA3*R32+2.*AA3*RE32)*FA3333+9.*E**(3.*AA1*
+     . R12+AA3*R32+2.*AA3*RE32)*F1333+9.*E**(3.*AA1*R12+AA3
+     . *R32+2.*AA3*RE32)*FA1333+16.*E**(3.*AA1*R12+3.*AA3*
+     . RE32)*COS(RHO)*FA3333-16.*E**(3.*AA1*R12+3.*AA3*RE32
+     . )*F3333+ANS9
+      ANS7=8.*E**(3.*AA1*R12+2.*AA3*R32+AA3*RE32)*COS(RHO)*
+     . F2A133+24.*E**(3.*AA1*R12+2.*AA3*R32+AA3*RE32)*COS(
+     . RHO)*FA3333+12.*E**(3.*AA1*R12+2.*AA3*R32+AA3*RE32)*
+     . COS(RHO)*FA1333+4.*E**(3.*AA1*R12+2.*AA3*R32+AA3*
+     . RE32)*COS(RHO)*FA1133-4.*E**(3.*AA1*R12+2.*AA3*R32+
+     . AA3*RE32)*F33-4.*E**(3.*AA1*R12+2.*AA3*R32+AA3*RE32)
+     . *F1A33-4.*E**(3.*AA1*R12+2.*AA3*R32+AA3*RE32)*F2A33-
+     . 4.*E**(3.*AA1*R12+2.*AA3*R32+AA3*RE32)*F3A33-12.*E**(
+     . 3.*AA1*R12+2.*AA3*R32+AA3*RE32)*F333-12.*E**(3.*AA1*
+     . R12+2.*AA3*R32+AA3*RE32)*F1A333-12.*E**(3.*AA1*R12+
+     . 2.*AA3*R32+AA3*RE32)*F2A333-4.*E**(3.*AA1*R12+2.*AA3*
+     . R32+AA3*RE32)*F133-4.*E**(3.*AA1*R12+2.*AA3*R32+AA3*
+     . RE32)*F1A133-4.*E**(3.*AA1*R12+2.*AA3*R32+AA3*RE32)*
+     . F2A133-24.*E**(3.*AA1*R12+2.*AA3*R32+AA3*RE32)*F3333
+     . -24.*E**(3.*AA1*R12+2.*AA3*R32+AA3*RE32)*FA3333-12.*
+     . E**(3.*AA1*R12+2.*AA3*R32+AA3*RE32)*F1333+ANS8
+      ANS6=E**(3.*AA1*R12+3.*AA3*R32)*F1113+E**(3.*AA1*R12+
+     . 3.*AA3*R32)*FA1113+3.*E**(3.*AA1*R12+3.*AA3*R32)*
+     . F1333+3.*E**(3.*AA1*R12+3.*AA3*R32)*FA1333+2.*E**(3.
+     . *AA1*R12+3.*AA3*R32)*F1133+2.*E**(3.*AA1*R12+3.*AA3*
+     . R32)*FA1133+4.*E**(3.*AA1*R12+2.*AA3*R32+AA3*RE32)*
+     . COS(RHO)**3*F3A33-4.*E**(3.*AA1*R12+2.*AA3*R32+AA3*
+     . RE32)*COS(RHO)**2*F2A33-12.*E**(3.*AA1*R12+2.*AA3*
+     . R32+AA3*RE32)*COS(RHO)**2*F3A33-12.*E**(3.*AA1*R12+
+     . 2.*AA3*R32+AA3*RE32)*COS(RHO)**2*F2A333-4.*E**(3.*AA1
+     . *R12+2.*AA3*R32+AA3*RE32)*COS(RHO)**2*F2A133+4.*E**(
+     . 3.*AA1*R12+2.*AA3*R32+AA3*RE32)*COS(RHO)*F1A33+8.*E**
+     . (3.*AA1*R12+2.*AA3*R32+AA3*RE32)*COS(RHO)*F2A33+12.*
+     . E**(3.*AA1*R12+2.*AA3*R32+AA3*RE32)*COS(RHO)*F3A33+
+     . 12.*E**(3.*AA1*R12+2.*AA3*R32+AA3*RE32)*COS(RHO)*
+     . F1A333+24.*E**(3.*AA1*R12+2.*AA3*R32+AA3*RE32)*COS(
+     . RHO)*F2A333+4.*E**(3.*AA1*R12+2.*AA3*R32+AA3*RE32)*
+     . COS(RHO)*F1A133+ANS7
+      ANS5=E**(3.*AA1*R12+3.*AA3*R32)*F3+E**(3.*AA1*R12+3.*
+     . AA3*R32)*F1A3+E**(3.*AA1*R12+3.*AA3*R32)*F2A3+E**(3.
+     . *AA1*R12+3.*AA3*R32)*F3A3+E**(3.*AA1*R12+3.*AA3*R32)
+     . *F4A3+2.*E**(3.*AA1*R12+3.*AA3*R32)*F33+2.*E**(3.*
+     . AA1*R12+3.*AA3*R32)*F1A33+2.*E**(3.*AA1*R12+3.*AA3*
+     . R32)*F2A33+2.*E**(3.*AA1*R12+3.*AA3*R32)*F3A33+E**(
+     . 3.*AA1*R12+3.*AA3*R32)*F13+E**(3.*AA1*R12+3.*AA3*R32)
+     . *F1A13+E**(3.*AA1*R12+3.*AA3*R32)*F2A13+E**(3.*AA1*
+     . R12+3.*AA3*R32)*F3A13+3.*E**(3.*AA1*R12+3.*AA3*R32)*
+     . F333+3.*E**(3.*AA1*R12+3.*AA3*R32)*F1A333+3.*E**(3.*
+     . AA1*R12+3.*AA3*R32)*F2A333+E**(3.*AA1*R12+3.*AA3*R32
+     . )*F113+E**(3.*AA1*R12+3.*AA3*R32)*F1A113+E**(3.*AA1*
+     . R12+3.*AA3*R32)*F2A113+2.*E**(3.*AA1*R12+3.*AA3*R32)
+     . *F133+2.*E**(3.*AA1*R12+3.*AA3*R32)*F1A133+2.*E**(3.
+     . *AA1*R12+3.*AA3*R32)*F2A133+4.*E**(3.*AA1*R12+3.*AA3
+     . *R32)*F3333+4.*E**(3.*AA1*R12+3.*AA3*R32)*FA3333+
+     . ANS6
+      ANS4=-3.*E**(3.*AA1*R12+3.*AA3*R32)*COS(RHO)*F3A3-4.*
+     . E**(3.*AA1*R12+3.*AA3*R32)*COS(RHO)*F4A3-2.*E**(3.*
+     . AA1*R12+3.*AA3*R32)*COS(RHO)*F1A33-4.*E**(3.*AA1*R12
+     . +3.*AA3*R32)*COS(RHO)*F2A33-6.*E**(3.*AA1*R12+3.*AA3
+     . *R32)*COS(RHO)*F3A33-E**(3.*AA1*R12+3.*AA3*R32)*COS(
+     . RHO)*F1A13-2.*E**(3.*AA1*R12+3.*AA3*R32)*COS(RHO)*
+     . F2A13-3.*E**(3.*AA1*R12+3.*AA3*R32)*COS(RHO)*F3A13-
+     . 3.*E**(3.*AA1*R12+3.*AA3*R32)*COS(RHO)*F1A333-6.*E**(
+     . 3.*AA1*R12+3.*AA3*R32)*COS(RHO)*F2A333-E**(3.*AA1*R12
+     . +3.*AA3*R32)*COS(RHO)*F1A113-2.*E**(3.*AA1*R12+3.*
+     . AA3*R32)*COS(RHO)*F2A113-2.*E**(3.*AA1*R12+3.*AA3*
+     . R32)*COS(RHO)*F1A133-4.*E**(3.*AA1*R12+3.*AA3*R32)*
+     . COS(RHO)*F2A133-4.*E**(3.*AA1*R12+3.*AA3*R32)*COS(
+     . RHO)*FA3333-E**(3.*AA1*R12+3.*AA3*R32)*COS(RHO)*
+     . FA1113-3.*E**(3.*AA1*R12+3.*AA3*R32)*COS(RHO)*FA1333
+     . -2.*E**(3.*AA1*R12+3.*AA3*R32)*COS(RHO)*FA1133+ANS5
+      ANS3=E**(3.*AA1*R12+3.*AA3*R32)*COS(RHO)**4*F4A3-E**(
+     . 3.*AA1*R12+3.*AA3*R32)*COS(RHO)**3*F3A3-4.*E**(3.*AA1
+     . *R12+3.*AA3*R32)*COS(RHO)**3*F4A3-2.*E**(3.*AA1*R12+
+     . 3.*AA3*R32)*COS(RHO)**3*F3A33-E**(3.*AA1*R12+3.*AA3*
+     . R32)*COS(RHO)**3*F3A13+E**(3.*AA1*R12+3.*AA3*R32)*
+     . COS(RHO)**2*F2A3+3.*E**(3.*AA1*R12+3.*AA3*R32)*COS(
+     . RHO)**2*F3A3+6.*E**(3.*AA1*R12+3.*AA3*R32)*COS(RHO)
+     . **2*F4A3+2.*E**(3.*AA1*R12+3.*AA3*R32)*COS(RHO)**2*
+     . F2A33+6.*E**(3.*AA1*R12+3.*AA3*R32)*COS(RHO)**2*
+     . F3A33+E**(3.*AA1*R12+3.*AA3*R32)*COS(RHO)**2*F2A13+
+     . 3.*E**(3.*AA1*R12+3.*AA3*R32)*COS(RHO)**2*F3A13+3.*E
+     . **(3.*AA1*R12+3.*AA3*R32)*COS(RHO)**2*F2A333+E**(3.*
+     . AA1*R12+3.*AA3*R32)*COS(RHO)**2*F2A113+2.*E**(3.*AA1
+     . *R12+3.*AA3*R32)*COS(RHO)**2*F2A133-E**(3.*AA1*R12+
+     . 3.*AA3*R32)*COS(RHO)*F1A3-2.*E**(3.*AA1*R12+3.*AA3*
+     . R32)*COS(RHO)*F2A3+ANS4
+      ANS2=E**(AA3*RE32)*AA3**2*ANS3
+      ANS1=ANS2/E**(3.*AA1*R12+4.*AA3*R32)
+      HOUT(2,2)=-ANS1
+C
+C
+      ANS23=-4.*E**(AA1*R12+3.*AA1*RE12+4.*AA3*R32)*COS(RHO
+     . )*FA1111-E**(AA1*R12+3.*AA1*RE12+4.*AA3*R32)*COS(RHO
+     . )*FA1113+E**(AA1*R12+3.*AA1*RE12+3.*AA3*R32+AA3*RE32
+     . )*COS(RHO)*FA1113+E**(4.*AA1*RE12+4.*AA3*R32)*COS(
+     . RHO)*FA1111
+      ANS22=3.*E**(2.*AA1*R12+2.*AA1*RE12+4.*AA3*R32)*COS(
+     . RHO)*FA1113+E**(2.*AA1*R12+2.*AA1*RE12+4.*AA3*R32)*
+     . COS(RHO)*FA1133-2.*E**(2.*AA1*R12+2.*AA1*RE12+3.*AA3
+     . *R32+AA3*RE32)*SIN(RHO)**2*F2A113+2.*E**(2.*AA1*R12+
+     . 2.*AA1*RE12+3.*AA3*R32+AA3*RE32)*COS(RHO)**2*F2A113-E
+     . **(2.*AA1*R12+2.*AA1*RE12+3.*AA3*R32+AA3*RE32)*COS(
+     . RHO)*F1A113-2.*E**(2.*AA1*R12+2.*AA1*RE12+3.*AA3*R32
+     . +AA3*RE32)*COS(RHO)*F2A113-3.*E**(2.*AA1*R12+2.*AA1*
+     . RE12+3.*AA3*R32+AA3*RE32)*COS(RHO)*FA1113-2.*E**(2.*
+     . AA1*R12+2.*AA1*RE12+3.*AA3*R32+AA3*RE32)*COS(RHO)*
+     . FA1133+E**(2.*AA1*R12+2.*AA1*RE12+2.*AA3*R32+2.*AA3*
+     . RE32)*COS(RHO)*FA1133-2.*E**(AA1*R12+3.*AA1*RE12+4.*
+     . AA3*R32)*SIN(RHO)**2*F2A111+2.*E**(AA1*R12+3.*AA1*
+     . RE12+4.*AA3*R32)*COS(RHO)**2*F2A111-E**(AA1*R12+3.*
+     . AA1*RE12+4.*AA3*R32)*COS(RHO)*F1A111-2.*E**(AA1*R12+
+     . 3.*AA1*RE12+4.*AA3*R32)*COS(RHO)*F2A111+ANS23
+      ANS21=2.*E**(2.*AA1*R12+2.*AA1*RE12+4.*AA3*R32)*SIN(
+     . RHO)**2*F2A113+3.*E**(2.*AA1*R12+2.*AA1*RE12+4.*AA3*
+     . R32)*COS(RHO)**3*F3A11-2.*E**(2.*AA1*R12+2.*AA1*RE12
+     . +4.*AA3*R32)*COS(RHO)**2*F2A11-6.*E**(2.*AA1*R12+2.*
+     . AA1*RE12+4.*AA3*R32)*COS(RHO)**2*F3A11-6.*E**(2.*AA1
+     . *R12+2.*AA1*RE12+4.*AA3*R32)*COS(RHO)**2*F2A111-2.*E
+     . **(2.*AA1*R12+2.*AA1*RE12+4.*AA3*R32)*COS(RHO)**2*
+     . F2A113+E**(2.*AA1*R12+2.*AA1*RE12+4.*AA3*R32)*COS(
+     . RHO)*F1A11+2.*E**(2.*AA1*R12+2.*AA1*RE12+4.*AA3*R32)
+     . *COS(RHO)*F2A11+3.*E**(2.*AA1*R12+2.*AA1*RE12+4.*AA3
+     . *R32)*COS(RHO)*F3A11+3.*E**(2.*AA1*R12+2.*AA1*RE12+
+     . 4.*AA3*R32)*COS(RHO)*F1A111+6.*E**(2.*AA1*R12+2.*AA1*
+     . RE12+4.*AA3*R32)*COS(RHO)*F2A111+E**(2.*AA1*R12+2.*
+     . AA1*RE12+4.*AA3*R32)*COS(RHO)*F1A113+2.*E**(2.*AA1*
+     . R12+2.*AA1*RE12+4.*AA3*R32)*COS(RHO)*F2A113+6.*E**(
+     . 2.*AA1*R12+2.*AA1*RE12+4.*AA3*R32)*COS(RHO)*FA1111+
+     . ANS22
+      ANS20=3.*E**(3.*AA1*R12+AA1*RE12+3.*AA3*R32+AA3*RE32)
+     . *COS(RHO)*FA1333+4.*E**(3.*AA1*R12+AA1*RE12+3.*AA3*
+     . R32+AA3*RE32)*COS(RHO)*FA1133-2.*E**(3.*AA1*R12+AA1*
+     . RE12+2.*AA3*R32+2.*AA3*RE32)*SIN(RHO)**2*F2A133+2.*E
+     . **(3.*AA1*R12+AA1*RE12+2.*AA3*R32+2.*AA3*RE32)*COS(
+     . RHO)**2*F2A133-E**(3.*AA1*R12+AA1*RE12+2.*AA3*R32+2.
+     . *AA3*RE32)*COS(RHO)*F1A133-2.*E**(3.*AA1*R12+AA1*
+     . RE12+2.*AA3*R32+2.*AA3*RE32)*COS(RHO)*F2A133-3.*E**(
+     . 3.*AA1*R12+AA1*RE12+2.*AA3*R32+2.*AA3*RE32)*COS(RHO)*
+     . FA1333-2.*E**(3.*AA1*R12+AA1*RE12+2.*AA3*R32+2.*AA3*
+     . RE32)*COS(RHO)*FA1133+E**(3.*AA1*R12+AA1*RE12+AA3*
+     . R32+3.*AA3*RE32)*COS(RHO)*FA1333-6.*E**(2.*AA1*R12+
+     . 2.*AA1*RE12+4.*AA3*R32)*SIN(RHO)**2*COS(RHO)*F3A11+2.
+     . *E**(2.*AA1*R12+2.*AA1*RE12+4.*AA3*R32)*SIN(RHO)**2*
+     . F2A11+6.*E**(2.*AA1*R12+2.*AA1*RE12+4.*AA3*R32)*SIN(
+     . RHO)**2*F3A11+6.*E**(2.*AA1*R12+2.*AA1*RE12+4.*AA3*
+     . R32)*SIN(RHO)**2*F2A111+ANS21
+      ANS19=3.*E**(3.*AA1*R12+AA1*RE12+3.*AA3*R32+AA3*RE32)
+     . *COS(RHO)**3*F3A13-2.*E**(3.*AA1*R12+AA1*RE12+3.*AA3
+     . *R32+AA3*RE32)*COS(RHO)**2*F2A13-6.*E**(3.*AA1*R12+
+     . AA1*RE12+3.*AA3*R32+AA3*RE32)*COS(RHO)**2*F3A13-4.*E
+     . **(3.*AA1*R12+AA1*RE12+3.*AA3*R32+AA3*RE32)*COS(RHO)
+     . **2*F2A113-4.*E**(3.*AA1*R12+AA1*RE12+3.*AA3*R32+AA3
+     . *RE32)*COS(RHO)**2*F2A133+E**(3.*AA1*R12+AA1*RE12+3.
+     . *AA3*R32+AA3*RE32)*COS(RHO)*F1A13+2.*E**(3.*AA1*R12+
+     . AA1*RE12+3.*AA3*R32+AA3*RE32)*COS(RHO)*F2A13+3.*E**(
+     . 3.*AA1*R12+AA1*RE12+3.*AA3*R32+AA3*RE32)*COS(RHO)*
+     . F3A13+2.*E**(3.*AA1*R12+AA1*RE12+3.*AA3*R32+AA3*RE32
+     . )*COS(RHO)*F1A113+4.*E**(3.*AA1*R12+AA1*RE12+3.*AA3*
+     . R32+AA3*RE32)*COS(RHO)*F2A113+2.*E**(3.*AA1*R12+AA1*
+     . RE12+3.*AA3*R32+AA3*RE32)*COS(RHO)*F1A133+4.*E**(3.*
+     . AA1*R12+AA1*RE12+3.*AA3*R32+AA3*RE32)*COS(RHO)*
+     . F2A133+3.*E**(3.*AA1*R12+AA1*RE12+3.*AA3*R32+AA3*
+     . RE32)*COS(RHO)*FA1113+ANS20
+      ANS18=-6.*E**(3.*AA1*R12+AA1*RE12+4.*AA3*R32)*COS(RHO
+     . )*F2A111-2.*E**(3.*AA1*R12+AA1*RE12+4.*AA3*R32)*COS(
+     . RHO)*F1A113-4.*E**(3.*AA1*R12+AA1*RE12+4.*AA3*R32)*
+     . COS(RHO)*F2A113-E**(3.*AA1*R12+AA1*RE12+4.*AA3*R32)*
+     . COS(RHO)*F1A133-2.*E**(3.*AA1*R12+AA1*RE12+4.*AA3*
+     . R32)*COS(RHO)*F2A133-4.*E**(3.*AA1*R12+AA1*RE12+4.*
+     . AA3*R32)*COS(RHO)*FA1111-3.*E**(3.*AA1*R12+AA1*RE12+
+     . 4.*AA3*R32)*COS(RHO)*FA1113-E**(3.*AA1*R12+AA1*RE12+
+     . 4.*AA3*R32)*COS(RHO)*FA1333-2.*E**(3.*AA1*R12+AA1*
+     . RE12+4.*AA3*R32)*COS(RHO)*FA1133-6.*E**(3.*AA1*R12+
+     . AA1*RE12+3.*AA3*R32+AA3*RE32)*SIN(RHO)**2*COS(RHO)*
+     . F3A13+2.*E**(3.*AA1*R12+AA1*RE12+3.*AA3*R32+AA3*RE32
+     . )*SIN(RHO)**2*F2A13+6.*E**(3.*AA1*R12+AA1*RE12+3.*
+     . AA3*R32+AA3*RE32)*SIN(RHO)**2*F3A13+4.*E**(3.*AA1*
+     . R12+AA1*RE12+3.*AA3*R32+AA3*RE32)*SIN(RHO)**2*F2A113
+     . +4.*E**(3.*AA1*R12+AA1*RE12+3.*AA3*R32+AA3*RE32)*SIN
+     . (RHO)**2*F2A133+ANS19
+      ANS17=6.*E**(3.*AA1*R12+AA1*RE12+4.*AA3*R32)*COS(RHO)
+     . **2*F3A13+6.*E**(3.*AA1*R12+AA1*RE12+4.*AA3*R32)*COS
+     . (RHO)**2*F2A111+4.*E**(3.*AA1*R12+AA1*RE12+4.*AA3*
+     . R32)*COS(RHO)**2*F2A113+2.*E**(3.*AA1*R12+AA1*RE12+
+     . 4.*AA3*R32)*COS(RHO)**2*F2A133-E**(3.*AA1*R12+AA1*
+     . RE12+4.*AA3*R32)*COS(RHO)*F1A1-2.*E**(3.*AA1*R12+AA1
+     . *RE12+4.*AA3*R32)*COS(RHO)*F2A1-3.*E**(3.*AA1*R12+
+     . AA1*RE12+4.*AA3*R32)*COS(RHO)*F3A1-4.*E**(3.*AA1*R12
+     . +AA1*RE12+4.*AA3*R32)*COS(RHO)*F4A1-2.*E**(3.*AA1*
+     . R12+AA1*RE12+4.*AA3*R32)*COS(RHO)*F1A11-4.*E**(3.*
+     . AA1*R12+AA1*RE12+4.*AA3*R32)*COS(RHO)*F2A11-6.*E**(
+     . 3.*AA1*R12+AA1*RE12+4.*AA3*R32)*COS(RHO)*F3A11-E**(3.
+     . *AA1*R12+AA1*RE12+4.*AA3*R32)*COS(RHO)*F1A13-2.*E**(
+     . 3.*AA1*R12+AA1*RE12+4.*AA3*R32)*COS(RHO)*F2A13-3.*E**
+     . (3.*AA1*R12+AA1*RE12+4.*AA3*R32)*COS(RHO)*F3A13-3.*E
+     . **(3.*AA1*R12+AA1*RE12+4.*AA3*R32)*COS(RHO)*F1A111+
+     . ANS18
+      ANS16=-6.*E**(3.*AA1*R12+AA1*RE12+4.*AA3*R32)*SIN(RHO
+     . )**2*F2A111-4.*E**(3.*AA1*R12+AA1*RE12+4.*AA3*R32)*
+     . SIN(RHO)**2*F2A113-2.*E**(3.*AA1*R12+AA1*RE12+4.*AA3
+     . *R32)*SIN(RHO)**2*F2A133+4.*E**(3.*AA1*R12+AA1*RE12+
+     . 4.*AA3*R32)*COS(RHO)**4*F4A1-3.*E**(3.*AA1*R12+AA1*
+     . RE12+4.*AA3*R32)*COS(RHO)**3*F3A1-12.*E**(3.*AA1*R12
+     . +AA1*RE12+4.*AA3*R32)*COS(RHO)**3*F4A1-6.*E**(3.*AA1
+     . *R12+AA1*RE12+4.*AA3*R32)*COS(RHO)**3*F3A11-3.*E**(
+     . 3.*AA1*R12+AA1*RE12+4.*AA3*R32)*COS(RHO)**3*F3A13+2.*
+     . E**(3.*AA1*R12+AA1*RE12+4.*AA3*R32)*COS(RHO)**2*F2A1
+     . +6.*E**(3.*AA1*R12+AA1*RE12+4.*AA3*R32)*COS(RHO)**2*
+     . F3A1+12.*E**(3.*AA1*R12+AA1*RE12+4.*AA3*R32)*COS(RHO
+     . )**2*F4A1+4.*E**(3.*AA1*R12+AA1*RE12+4.*AA3*R32)*COS
+     . (RHO)**2*F2A11+12.*E**(3.*AA1*R12+AA1*RE12+4.*AA3*
+     . R32)*COS(RHO)**2*F3A11+2.*E**(3.*AA1*R12+AA1*RE12+4.
+     . *AA3*R32)*COS(RHO)**2*F2A13+ANS17
+      ANS15=-E**(4.*AA1*R12+AA3*R32+3.*AA3*RE32)*COS(RHO)*
+     . FA1333+E**(4.*AA1*R12+4.*AA3*RE32)*COS(RHO)*FA3333-
+     . 12.*E**(3.*AA1*R12+AA1*RE12+4.*AA3*R32)*SIN(RHO)**2*
+     . COS(RHO)**2*F4A1+6.*E**(3.*AA1*R12+AA1*RE12+4.*AA3*
+     . R32)*SIN(RHO)**2*COS(RHO)*F3A1+24.*E**(3.*AA1*R12+
+     . AA1*RE12+4.*AA3*R32)*SIN(RHO)**2*COS(RHO)*F4A1+12.*E
+     . **(3.*AA1*R12+AA1*RE12+4.*AA3*R32)*SIN(RHO)**2*COS(
+     . RHO)*F3A11+6.*E**(3.*AA1*R12+AA1*RE12+4.*AA3*R32)*
+     . SIN(RHO)**2*COS(RHO)*F3A13-2.*E**(3.*AA1*R12+AA1*
+     . RE12+4.*AA3*R32)*SIN(RHO)**2*F2A1-6.*E**(3.*AA1*R12+
+     . AA1*RE12+4.*AA3*R32)*SIN(RHO)**2*F3A1-12.*E**(3.*AA1
+     . *R12+AA1*RE12+4.*AA3*R32)*SIN(RHO)**2*F4A1-4.*E**(3.
+     . *AA1*R12+AA1*RE12+4.*AA3*R32)*SIN(RHO)**2*F2A11-12.*
+     . E**(3.*AA1*R12+AA1*RE12+4.*AA3*R32)*SIN(RHO)**2*
+     . F3A11-2.*E**(3.*AA1*R12+AA1*RE12+4.*AA3*R32)*SIN(RHO
+     . )**2*F2A13-6.*E**(3.*AA1*R12+AA1*RE12+4.*AA3*R32)*
+     . SIN(RHO)**2*F3A13+ANS16
+      ANS14=E**(4.*AA1*R12+2.*AA3*R32+2.*AA3*RE32)*COS(RHO)
+     . *F1A33+2.*E**(4.*AA1*R12+2.*AA3*R32+2.*AA3*RE32)*COS
+     . (RHO)*F2A33+3.*E**(4.*AA1*R12+2.*AA3*R32+2.*AA3*RE32
+     . )*COS(RHO)*F3A33+3.*E**(4.*AA1*R12+2.*AA3*R32+2.*AA3
+     . *RE32)*COS(RHO)*F1A333+6.*E**(4.*AA1*R12+2.*AA3*R32+
+     . 2.*AA3*RE32)*COS(RHO)*F2A333+E**(4.*AA1*R12+2.*AA3*
+     . R32+2.*AA3*RE32)*COS(RHO)*F1A133+2.*E**(4.*AA1*R12+
+     . 2.*AA3*R32+2.*AA3*RE32)*COS(RHO)*F2A133+6.*E**(4.*AA1
+     . *R12+2.*AA3*R32+2.*AA3*RE32)*COS(RHO)*FA3333+3.*E**(
+     . 4.*AA1*R12+2.*AA3*R32+2.*AA3*RE32)*COS(RHO)*FA1333+E
+     . **(4.*AA1*R12+2.*AA3*R32+2.*AA3*RE32)*COS(RHO)*
+     . FA1133-2.*E**(4.*AA1*R12+AA3*R32+3.*AA3*RE32)*SIN(
+     . RHO)**2*F2A333+2.*E**(4.*AA1*R12+AA3*R32+3.*AA3*RE32
+     . )*COS(RHO)**2*F2A333-E**(4.*AA1*R12+AA3*R32+3.*AA3*
+     . RE32)*COS(RHO)*F1A333-2.*E**(4.*AA1*R12+AA3*R32+3.*
+     . AA3*RE32)*COS(RHO)*F2A333-4.*E**(4.*AA1*R12+AA3*R32+
+     . 3.*AA3*RE32)*COS(RHO)*FA3333+ANS15
+      ANS13=-4.*E**(4.*AA1*R12+3.*AA3*R32+AA3*RE32)*COS(RHO
+     . )*FA3333-E**(4.*AA1*R12+3.*AA3*R32+AA3*RE32)*COS(RHO
+     . )*FA1113-3.*E**(4.*AA1*R12+3.*AA3*R32+AA3*RE32)*COS(
+     . RHO)*FA1333-2.*E**(4.*AA1*R12+3.*AA3*R32+AA3*RE32)*
+     . COS(RHO)*FA1133-6.*E**(4.*AA1*R12+2.*AA3*R32+2.*AA3*
+     . RE32)*SIN(RHO)**2*COS(RHO)*F3A33+2.*E**(4.*AA1*R12+
+     . 2.*AA3*R32+2.*AA3*RE32)*SIN(RHO)**2*F2A33+6.*E**(4.*
+     . AA1*R12+2.*AA3*R32+2.*AA3*RE32)*SIN(RHO)**2*F3A33+6.
+     . *E**(4.*AA1*R12+2.*AA3*R32+2.*AA3*RE32)*SIN(RHO)**2*
+     . F2A333+2.*E**(4.*AA1*R12+2.*AA3*R32+2.*AA3*RE32)*SIN
+     . (RHO)**2*F2A133+3.*E**(4.*AA1*R12+2.*AA3*R32+2.*AA3*
+     . RE32)*COS(RHO)**3*F3A33-2.*E**(4.*AA1*R12+2.*AA3*R32
+     . +2.*AA3*RE32)*COS(RHO)**2*F2A33-6.*E**(4.*AA1*R12+2.
+     . *AA3*R32+2.*AA3*RE32)*COS(RHO)**2*F3A33-6.*E**(4.*
+     . AA1*R12+2.*AA3*R32+2.*AA3*RE32)*COS(RHO)**2*F2A333-
+     . 2.*E**(4.*AA1*R12+2.*AA3*R32+2.*AA3*RE32)*COS(RHO)**2
+     . *F2A133+ANS14
+      ANS12=-2.*E**(4.*AA1*R12+3.*AA3*R32+AA3*RE32)*COS(RHO
+     . )*F2A3-3.*E**(4.*AA1*R12+3.*AA3*R32+AA3*RE32)*COS(
+     . RHO)*F3A3-4.*E**(4.*AA1*R12+3.*AA3*R32+AA3*RE32)*COS
+     . (RHO)*F4A3-2.*E**(4.*AA1*R12+3.*AA3*R32+AA3*RE32)*
+     . COS(RHO)*F1A33-4.*E**(4.*AA1*R12+3.*AA3*R32+AA3*RE32
+     . )*COS(RHO)*F2A33-6.*E**(4.*AA1*R12+3.*AA3*R32+AA3*
+     . RE32)*COS(RHO)*F3A33-E**(4.*AA1*R12+3.*AA3*R32+AA3*
+     . RE32)*COS(RHO)*F1A13-2.*E**(4.*AA1*R12+3.*AA3*R32+
+     . AA3*RE32)*COS(RHO)*F2A13-3.*E**(4.*AA1*R12+3.*AA3*
+     . R32+AA3*RE32)*COS(RHO)*F3A13-3.*E**(4.*AA1*R12+3.*
+     . AA3*R32+AA3*RE32)*COS(RHO)*F1A333-6.*E**(4.*AA1*R12+
+     . 3.*AA3*R32+AA3*RE32)*COS(RHO)*F2A333-E**(4.*AA1*R12+
+     . 3.*AA3*R32+AA3*RE32)*COS(RHO)*F1A113-2.*E**(4.*AA1*
+     . R12+3.*AA3*R32+AA3*RE32)*COS(RHO)*F2A113-2.*E**(4.*
+     . AA1*R12+3.*AA3*R32+AA3*RE32)*COS(RHO)*F1A133-4.*E**(
+     . 4.*AA1*R12+3.*AA3*R32+AA3*RE32)*COS(RHO)*F2A133+ANS13
+      ANS11=-12.*E**(4.*AA1*R12+3.*AA3*R32+AA3*RE32)*COS(
+     . RHO)**3*F4A3-6.*E**(4.*AA1*R12+3.*AA3*R32+AA3*RE32)*
+     . COS(RHO)**3*F3A33-3.*E**(4.*AA1*R12+3.*AA3*R32+AA3*
+     . RE32)*COS(RHO)**3*F3A13+2.*E**(4.*AA1*R12+3.*AA3*R32
+     . +AA3*RE32)*COS(RHO)**2*F2A3+6.*E**(4.*AA1*R12+3.*AA3
+     . *R32+AA3*RE32)*COS(RHO)**2*F3A3+12.*E**(4.*AA1*R12+
+     . 3.*AA3*R32+AA3*RE32)*COS(RHO)**2*F4A3+4.*E**(4.*AA1*
+     . R12+3.*AA3*R32+AA3*RE32)*COS(RHO)**2*F2A33+12.*E**(
+     . 4.*AA1*R12+3.*AA3*R32+AA3*RE32)*COS(RHO)**2*F3A33+2.*
+     . E**(4.*AA1*R12+3.*AA3*R32+AA3*RE32)*COS(RHO)**2*
+     . F2A13+6.*E**(4.*AA1*R12+3.*AA3*R32+AA3*RE32)*COS(RHO
+     . )**2*F3A13+6.*E**(4.*AA1*R12+3.*AA3*R32+AA3*RE32)*
+     . COS(RHO)**2*F2A333+2.*E**(4.*AA1*R12+3.*AA3*R32+AA3*
+     . RE32)*COS(RHO)**2*F2A113+4.*E**(4.*AA1*R12+3.*AA3*
+     . R32+AA3*RE32)*COS(RHO)**2*F2A133-E**(4.*AA1*R12+3.*
+     . AA3*R32+AA3*RE32)*COS(RHO)*F1A3+ANS12
+      ANS10=12.*E**(4.*AA1*R12+3.*AA3*R32+AA3*RE32)*SIN(RHO
+     . )**2*COS(RHO)*F3A33+6.*E**(4.*AA1*R12+3.*AA3*R32+AA3
+     . *RE32)*SIN(RHO)**2*COS(RHO)*F3A13-2.*E**(4.*AA1*R12+
+     . 3.*AA3*R32+AA3*RE32)*SIN(RHO)**2*F2A3-6.*E**(4.*AA1*
+     . R12+3.*AA3*R32+AA3*RE32)*SIN(RHO)**2*F3A3-12.*E**(4.
+     . *AA1*R12+3.*AA3*R32+AA3*RE32)*SIN(RHO)**2*F4A3-4.*E
+     . **(4.*AA1*R12+3.*AA3*R32+AA3*RE32)*SIN(RHO)**2*F2A33
+     . -12.*E**(4.*AA1*R12+3.*AA3*R32+AA3*RE32)*SIN(RHO)**2
+     . *F3A33-2.*E**(4.*AA1*R12+3.*AA3*R32+AA3*RE32)*SIN(
+     . RHO)**2*F2A13-6.*E**(4.*AA1*R12+3.*AA3*R32+AA3*RE32)
+     . *SIN(RHO)**2*F3A13-6.*E**(4.*AA1*R12+3.*AA3*R32+AA3*
+     . RE32)*SIN(RHO)**2*F2A333-2.*E**(4.*AA1*R12+3.*AA3*
+     . R32+AA3*RE32)*SIN(RHO)**2*F2A113-4.*E**(4.*AA1*R12+
+     . 3.*AA3*R32+AA3*RE32)*SIN(RHO)**2*F2A133+4.*E**(4.*AA1
+     . *R12+3.*AA3*R32+AA3*RE32)*COS(RHO)**4*F4A3-3.*E**(4.
+     . *AA1*R12+3.*AA3*R32+AA3*RE32)*COS(RHO)**3*F3A3+ANS11
+      ANS9=2.*E**(4.*AA1*R12+4.*AA3*R32)*COS(RHO)*F2A133+E
+     . **(4.*AA1*R12+4.*AA3*R32)*COS(RHO)*FA1111+E**(4.*AA1
+     . *R12+4.*AA3*R32)*COS(RHO)*FA3333+E**(4.*AA1*R12+4.*
+     . AA3*R32)*COS(RHO)*FA1113+E**(4.*AA1*R12+4.*AA3*R32)*
+     . COS(RHO)*FA1333+E**(4.*AA1*R12+4.*AA3*R32)*COS(RHO)*
+     . FA1133+E**(4.*AA1*R12+4.*AA3*R32)*COS(RHO)*FA1+2.*E
+     . **(4.*AA1*R12+4.*AA3*R32)*COS(RHO)*FA2+3.*E**(4.*AA1
+     . *R12+4.*AA3*R32)*COS(RHO)*FA3+4.*E**(4.*AA1*R12+4.*
+     . AA3*R32)*COS(RHO)*FA4+5.*E**(4.*AA1*R12+4.*AA3*R32)*
+     . COS(RHO)*FA5+6.*E**(4.*AA1*R12+4.*AA3*R32)*COS(RHO)*
+     . FA6+7.*E**(4.*AA1*R12+4.*AA3*R32)*COS(RHO)*FA7+8.*E
+     . **(4.*AA1*R12+4.*AA3*R32)*COS(RHO)*FA8-12.*E**(4.*
+     . AA1*R12+3.*AA3*R32+AA3*RE32)*SIN(RHO)**2*COS(RHO)**2
+     . *F4A3+6.*E**(4.*AA1*R12+3.*AA3*R32+AA3*RE32)*SIN(RHO
+     . )**2*COS(RHO)*F3A3+24.*E**(4.*AA1*R12+3.*AA3*R32+AA3
+     . *RE32)*SIN(RHO)**2*COS(RHO)*F4A3+ANS10
+      ANS8=2.*E**(4.*AA1*R12+4.*AA3*R32)*COS(RHO)*F2A3+3.*E
+     . **(4.*AA1*R12+4.*AA3*R32)*COS(RHO)*F3A3+4.*E**(4.*
+     . AA1*R12+4.*AA3*R32)*COS(RHO)*F4A3+E**(4.*AA1*R12+4.*
+     . AA3*R32)*COS(RHO)*F1A11+2.*E**(4.*AA1*R12+4.*AA3*R32
+     . )*COS(RHO)*F2A11+3.*E**(4.*AA1*R12+4.*AA3*R32)*COS(
+     . RHO)*F3A11+E**(4.*AA1*R12+4.*AA3*R32)*COS(RHO)*F1A33
+     . +2.*E**(4.*AA1*R12+4.*AA3*R32)*COS(RHO)*F2A33+3.*E**
+     . (4.*AA1*R12+4.*AA3*R32)*COS(RHO)*F3A33+E**(4.*AA1*
+     . R12+4.*AA3*R32)*COS(RHO)*F1A13+2.*E**(4.*AA1*R12+4.*
+     . AA3*R32)*COS(RHO)*F2A13+3.*E**(4.*AA1*R12+4.*AA3*R32
+     . )*COS(RHO)*F3A13+E**(4.*AA1*R12+4.*AA3*R32)*COS(RHO)
+     . *F1A111+2.*E**(4.*AA1*R12+4.*AA3*R32)*COS(RHO)*
+     . F2A111+E**(4.*AA1*R12+4.*AA3*R32)*COS(RHO)*F1A333+2.
+     . *E**(4.*AA1*R12+4.*AA3*R32)*COS(RHO)*F2A333+E**(4.*
+     . AA1*R12+4.*AA3*R32)*COS(RHO)*F1A113+2.*E**(4.*AA1*
+     . R12+4.*AA3*R32)*COS(RHO)*F2A113+E**(4.*AA1*R12+4.*
+     . AA3*R32)*COS(RHO)*F1A133+ANS9
+      ANS7=-6.*E**(4.*AA1*R12+4.*AA3*R32)*COS(RHO)**2*F3A13
+     . -2.*E**(4.*AA1*R12+4.*AA3*R32)*COS(RHO)**2*F2A111-2.
+     . *E**(4.*AA1*R12+4.*AA3*R32)*COS(RHO)**2*F2A333-2.*E
+     . **(4.*AA1*R12+4.*AA3*R32)*COS(RHO)**2*F2A113-2.*E**(
+     . 4.*AA1*R12+4.*AA3*R32)*COS(RHO)**2*F2A133-2.*E**(4.*
+     . AA1*R12+4.*AA3*R32)*COS(RHO)**2*FA2-6.*E**(4.*AA1*
+     . R12+4.*AA3*R32)*COS(RHO)**2*FA3-12.*E**(4.*AA1*R12+
+     . 4.*AA3*R32)*COS(RHO)**2*FA4-20.*E**(4.*AA1*R12+4.*AA3
+     . *R32)*COS(RHO)**2*FA5-30.*E**(4.*AA1*R12+4.*AA3*R32)
+     . *COS(RHO)**2*FA6-42.*E**(4.*AA1*R12+4.*AA3*R32)*COS(
+     . RHO)**2*FA7-56.*E**(4.*AA1*R12+4.*AA3*R32)*COS(RHO)
+     . **2*FA8+E**(4.*AA1*R12+4.*AA3*R32)*COS(RHO)*F1A1+2.*
+     . E**(4.*AA1*R12+4.*AA3*R32)*COS(RHO)*F2A1+3.*E**(4.*
+     . AA1*R12+4.*AA3*R32)*COS(RHO)*F3A1+4.*E**(4.*AA1*R12+
+     . 4.*AA3*R32)*COS(RHO)*F4A1+E**(4.*AA1*R12+4.*AA3*R32)*
+     . COS(RHO)*F1A3+ANS8
+      ANS6=3.*E**(4.*AA1*R12+4.*AA3*R32)*COS(RHO)**3*FA3+
+     . 12.*E**(4.*AA1*R12+4.*AA3*R32)*COS(RHO)**3*FA4+30.*E
+     . **(4.*AA1*R12+4.*AA3*R32)*COS(RHO)**3*FA5+60.*E**(4.
+     . *AA1*R12+4.*AA3*R32)*COS(RHO)**3*FA6+105.*E**(4.*AA1
+     . *R12+4.*AA3*R32)*COS(RHO)**3*FA7+168.*E**(4.*AA1*R12
+     . +4.*AA3*R32)*COS(RHO)**3*FA8-2.*E**(4.*AA1*R12+4.*
+     . AA3*R32)*COS(RHO)**2*F2A1-6.*E**(4.*AA1*R12+4.*AA3*
+     . R32)*COS(RHO)**2*F3A1-12.*E**(4.*AA1*R12+4.*AA3*R32)
+     . *COS(RHO)**2*F4A1-2.*E**(4.*AA1*R12+4.*AA3*R32)*COS(
+     . RHO)**2*F2A3-6.*E**(4.*AA1*R12+4.*AA3*R32)*COS(RHO)
+     . **2*F3A3-12.*E**(4.*AA1*R12+4.*AA3*R32)*COS(RHO)**2*
+     . F4A3-2.*E**(4.*AA1*R12+4.*AA3*R32)*COS(RHO)**2*F2A11
+     . -6.*E**(4.*AA1*R12+4.*AA3*R32)*COS(RHO)**2*F3A11-2.*
+     . E**(4.*AA1*R12+4.*AA3*R32)*COS(RHO)**2*F2A33-6.*E**(
+     . 4.*AA1*R12+4.*AA3*R32)*COS(RHO)**2*F3A33-2.*E**(4.*
+     . AA1*R12+4.*AA3*R32)*COS(RHO)**2*F2A13+ANS7
+      ANS5=30.*E**(4.*AA1*R12+4.*AA3*R32)*COS(RHO)**5*FA6+
+     . 105.*E**(4.*AA1*R12+4.*AA3*R32)*COS(RHO)**5*FA7+280.*
+     . E**(4.*AA1*R12+4.*AA3*R32)*COS(RHO)**5*FA8-4.*E**(4.
+     . *AA1*R12+4.*AA3*R32)*COS(RHO)**4*F4A1-4.*E**(4.*AA1*
+     . R12+4.*AA3*R32)*COS(RHO)**4*F4A3-4.*E**(4.*AA1*R12+
+     . 4.*AA3*R32)*COS(RHO)**4*FA4-20.*E**(4.*AA1*R12+4.*AA3
+     . *R32)*COS(RHO)**4*FA5-60.*E**(4.*AA1*R12+4.*AA3*R32)
+     . *COS(RHO)**4*FA6-140.*E**(4.*AA1*R12+4.*AA3*R32)*COS
+     . (RHO)**4*FA7-280.*E**(4.*AA1*R12+4.*AA3*R32)*COS(RHO
+     . )**4*FA8+3.*E**(4.*AA1*R12+4.*AA3*R32)*COS(RHO)**3*
+     . F3A1+12.*E**(4.*AA1*R12+4.*AA3*R32)*COS(RHO)**3*F4A1
+     . +3.*E**(4.*AA1*R12+4.*AA3*R32)*COS(RHO)**3*F3A3+12.*
+     . E**(4.*AA1*R12+4.*AA3*R32)*COS(RHO)**3*F4A3+3.*E**(
+     . 4.*AA1*R12+4.*AA3*R32)*COS(RHO)**3*F3A11+3.*E**(4.*
+     . AA1*R12+4.*AA3*R32)*COS(RHO)**3*F3A33+3.*E**(4.*AA1*
+     . R12+4.*AA3*R32)*COS(RHO)**3*F3A13+ANS6
+      ANS4=2.*E**(4.*AA1*R12+4.*AA3*R32)*SIN(RHO)**2*F2A333
+     . +2.*E**(4.*AA1*R12+4.*AA3*R32)*SIN(RHO)**2*F2A113+2.
+     . *E**(4.*AA1*R12+4.*AA3*R32)*SIN(RHO)**2*F2A133+2.*E
+     . **(4.*AA1*R12+4.*AA3*R32)*SIN(RHO)**2*FA2+6.*E**(4.*
+     . AA1*R12+4.*AA3*R32)*SIN(RHO)**2*FA3+12.*E**(4.*AA1*
+     . R12+4.*AA3*R32)*SIN(RHO)**2*FA4+20.*E**(4.*AA1*R12+
+     . 4.*AA3*R32)*SIN(RHO)**2*FA5+30.*E**(4.*AA1*R12+4.*AA3
+     . *R32)*SIN(RHO)**2*FA6+42.*E**(4.*AA1*R12+4.*AA3*R32)
+     . *SIN(RHO)**2*FA7+56.*E**(4.*AA1*R12+4.*AA3*R32)*SIN(
+     . RHO)**2*FA8-8.*E**(4.*AA1*R12+4.*AA3*R32)*COS(RHO)**
+     . 8*FA8+7.*E**(4.*AA1*R12+4.*AA3*R32)*COS(RHO)**7*FA7+
+     . 56.*E**(4.*AA1*R12+4.*AA3*R32)*COS(RHO)**7*FA8-6.*E**
+     . (4.*AA1*R12+4.*AA3*R32)*COS(RHO)**6*FA6-42.*E**(4.*
+     . AA1*R12+4.*AA3*R32)*COS(RHO)**6*FA7-168.*E**(4.*AA1*
+     . R12+4.*AA3*R32)*COS(RHO)**6*FA8+5.*E**(4.*AA1*R12+4.
+     . *AA3*R32)*COS(RHO)**5*FA5+ANS5
+      ANS3=-120.*E**(4.*AA1*R12+4.*AA3*R32)*SIN(RHO)**2*COS
+     . (RHO)*FA6-210.*E**(4.*AA1*R12+4.*AA3*R32)*SIN(RHO)**
+     . 2*COS(RHO)*FA7-336.*E**(4.*AA1*R12+4.*AA3*R32)*SIN(
+     . RHO)**2*COS(RHO)*FA8+2.*E**(4.*AA1*R12+4.*AA3*R32)*
+     . SIN(RHO)**2*F2A1+6.*E**(4.*AA1*R12+4.*AA3*R32)*SIN(
+     . RHO)**2*F3A1+12.*E**(4.*AA1*R12+4.*AA3*R32)*SIN(RHO)
+     . **2*F4A1+2.*E**(4.*AA1*R12+4.*AA3*R32)*SIN(RHO)**2*
+     . F2A3+6.*E**(4.*AA1*R12+4.*AA3*R32)*SIN(RHO)**2*F3A3+
+     . 12.*E**(4.*AA1*R12+4.*AA3*R32)*SIN(RHO)**2*F4A3+2.*E
+     . **(4.*AA1*R12+4.*AA3*R32)*SIN(RHO)**2*F2A11+6.*E**(
+     . 4.*AA1*R12+4.*AA3*R32)*SIN(RHO)**2*F3A11+2.*E**(4.*
+     . AA1*R12+4.*AA3*R32)*SIN(RHO)**2*F2A33+6.*E**(4.*AA1*
+     . R12+4.*AA3*R32)*SIN(RHO)**2*F3A33+2.*E**(4.*AA1*R12+
+     . 4.*AA3*R32)*SIN(RHO)**2*F2A13+6.*E**(4.*AA1*R12+4.*
+     . AA3*R32)*SIN(RHO)**2*F3A13+2.*E**(4.*AA1*R12+4.*AA3*
+     . R32)*SIN(RHO)**2*F2A111+ANS4
+      ANS2=60.*E**(4.*AA1*R12+4.*AA3*R32)*SIN(RHO)**2*COS(
+     . RHO)**2*FA5+180.*E**(4.*AA1*R12+4.*AA3*R32)*SIN(RHO)
+     . **2*COS(RHO)**2*FA6+420.*E**(4.*AA1*R12+4.*AA3*R32)*
+     . SIN(RHO)**2*COS(RHO)**2*FA7+840.*E**(4.*AA1*R12+4.*
+     . AA3*R32)*SIN(RHO)**2*COS(RHO)**2*FA8-6.*E**(4.*AA1*
+     . R12+4.*AA3*R32)*SIN(RHO)**2*COS(RHO)*F3A1-24.*E**(4.
+     . *AA1*R12+4.*AA3*R32)*SIN(RHO)**2*COS(RHO)*F4A1-6.*E
+     . **(4.*AA1*R12+4.*AA3*R32)*SIN(RHO)**2*COS(RHO)*F3A3-
+     . 24.*E**(4.*AA1*R12+4.*AA3*R32)*SIN(RHO)**2*COS(RHO)*
+     . F4A3-6.*E**(4.*AA1*R12+4.*AA3*R32)*SIN(RHO)**2*COS(
+     . RHO)*F3A11-6.*E**(4.*AA1*R12+4.*AA3*R32)*SIN(RHO)**2
+     . *COS(RHO)*F3A33-6.*E**(4.*AA1*R12+4.*AA3*R32)*SIN(
+     . RHO)**2*COS(RHO)*F3A13-6.*E**(4.*AA1*R12+4.*AA3*R32)
+     . *SIN(RHO)**2*COS(RHO)*FA3-24.*E**(4.*AA1*R12+4.*AA3*
+     . R32)*SIN(RHO)**2*COS(RHO)*FA4-60.*E**(4.*AA1*R12+4.*
+     . AA3*R32)*SIN(RHO)**2*COS(RHO)*FA5+ANS3
+      ANS1=56.*E**(4.*AA1*R12+4.*AA3*R32)*SIN(RHO)**2*COS(
+     . RHO)**6*FA8-42.*E**(4.*AA1*R12+4.*AA3*R32)*SIN(RHO)
+     . **2*COS(RHO)**5*FA7-336.*E**(4.*AA1*R12+4.*AA3*R32)*
+     . SIN(RHO)**2*COS(RHO)**5*FA8+30.*E**(4.*AA1*R12+4.*
+     . AA3*R32)*SIN(RHO)**2*COS(RHO)**4*FA6+210.*E**(4.*AA1
+     . *R12+4.*AA3*R32)*SIN(RHO)**2*COS(RHO)**4*FA7+840.*E
+     . **(4.*AA1*R12+4.*AA3*R32)*SIN(RHO)**2*COS(RHO)**4*
+     . FA8-20.*E**(4.*AA1*R12+4.*AA3*R32)*SIN(RHO)**2*COS(
+     . RHO)**3*FA5-120.*E**(4.*AA1*R12+4.*AA3*R32)*SIN(RHO)
+     . **2*COS(RHO)**3*FA6-420.*E**(4.*AA1*R12+4.*AA3*R32)*
+     . SIN(RHO)**2*COS(RHO)**3*FA7-1120.*E**(4.*AA1*R12+4.*
+     . AA3*R32)*SIN(RHO)**2*COS(RHO)**3*FA8+12.*E**(4.*AA1*
+     . R12+4.*AA3*R32)*SIN(RHO)**2*COS(RHO)**2*F4A1+12.*E**
+     . (4.*AA1*R12+4.*AA3*R32)*SIN(RHO)**2*COS(RHO)**2*F4A3
+     . +12.*E**(4.*AA1*R12+4.*AA3*R32)*SIN(RHO)**2*COS(RHO)
+     . **2*FA4+ANS2
+      HOUT(3,3)=ANS1/E**(4.*AA1*R12+4.*AA3*R32)
+C
+C
+      ANS6=4.*E**(AA1*R12+AA1*RE12+2.*AA3*R32)*F1133+4.*E**
+     . (AA1*R12+AA1*RE12+2.*AA3*R32)*FA1133+4.*E**(AA1*R12+
+     . AA1*RE12+AA3*R32+AA3*RE32)*COS(RHO)*FA1133-4.*E**(
+     . AA1*R12+AA1*RE12+AA3*R32+AA3*RE32)*F1133-4.*E**(AA1*
+     . R12+AA1*RE12+AA3*R32+AA3*RE32)*FA1133+3.*E**(2.*AA1*
+     . RE12+2.*AA3*R32)*COS(RHO)*FA1113-3.*E**(2.*AA1*RE12+
+     . 2.*AA3*R32)*F1113-3.*E**(2.*AA1*RE12+2.*AA3*R32)*
+     . FA1113
+      ANS5=2.*E**(2.*AA1*R12+AA3*R32+AA3*RE32)*F2A133+6.*E
+     . **(2.*AA1*R12+AA3*R32+AA3*RE32)*F1333+6.*E**(2.*AA1*
+     . R12+AA3*R32+AA3*RE32)*FA1333+4.*E**(2.*AA1*R12+AA3*
+     . R32+AA3*RE32)*F1133+4.*E**(2.*AA1*R12+AA3*R32+AA3*
+     . RE32)*FA1133+3.*E**(2.*AA1*R12+2.*AA3*RE32)*COS(RHO)
+     . *FA1333-3.*E**(2.*AA1*R12+2.*AA3*RE32)*F1333-3.*E**(
+     . 2.*AA1*R12+2.*AA3*RE32)*FA1333+2.*E**(AA1*R12+AA1*
+     . RE12+2.*AA3*R32)*COS(RHO)**2*F2A113-2.*E**(AA1*R12+
+     . AA1*RE12+2.*AA3*R32)*COS(RHO)*F1A113-4.*E**(AA1*R12+
+     . AA1*RE12+2.*AA3*R32)*COS(RHO)*F2A113-6.*E**(AA1*R12+
+     . AA1*RE12+2.*AA3*R32)*COS(RHO)*FA1113-4.*E**(AA1*R12+
+     . AA1*RE12+2.*AA3*R32)*COS(RHO)*FA1133+2.*E**(AA1*R12+
+     . AA1*RE12+2.*AA3*R32)*F113+2.*E**(AA1*R12+AA1*RE12+2.
+     . *AA3*R32)*F1A113+2.*E**(AA1*R12+AA1*RE12+2.*AA3*R32)
+     . *F2A113+6.*E**(AA1*R12+AA1*RE12+2.*AA3*R32)*F1113+6.
+     . *E**(AA1*R12+AA1*RE12+2.*AA3*R32)*FA1113+ANS6
+      ANS4=-2.*E**(2.*AA1*R12+2.*AA3*R32)*F113-2.*E**(2.*
+     . AA1*R12+2.*AA3*R32)*F1A113-2.*E**(2.*AA1*R12+2.*AA3*
+     . R32)*F2A113-2.*E**(2.*AA1*R12+2.*AA3*R32)*F133-2.*E
+     . **(2.*AA1*R12+2.*AA3*R32)*F1A133-2.*E**(2.*AA1*R12+
+     . 2.*AA3*R32)*F2A133-3.*E**(2.*AA1*R12+2.*AA3*R32)*
+     . F1113-3.*E**(2.*AA1*R12+2.*AA3*R32)*FA1113-3.*E**(2.
+     . *AA1*R12+2.*AA3*R32)*F1333-3.*E**(2.*AA1*R12+2.*AA3*
+     . R32)*FA1333-4.*E**(2.*AA1*R12+2.*AA3*R32)*F1133-4.*E
+     . **(2.*AA1*R12+2.*AA3*R32)*FA1133+2.*E**(2.*AA1*R12+
+     . AA3*R32+AA3*RE32)*COS(RHO)**2*F2A133-2.*E**(2.*AA1*
+     . R12+AA3*R32+AA3*RE32)*COS(RHO)*F1A133-4.*E**(2.*AA1*
+     . R12+AA3*R32+AA3*RE32)*COS(RHO)*F2A133-6.*E**(2.*AA1*
+     . R12+AA3*R32+AA3*RE32)*COS(RHO)*FA1333-4.*E**(2.*AA1*
+     . R12+AA3*R32+AA3*RE32)*COS(RHO)*FA1133+2.*E**(2.*AA1*
+     . R12+AA3*R32+AA3*RE32)*F133+2.*E**(2.*AA1*R12+AA3*R32
+     . +AA3*RE32)*F1A133+ANS5
+      ANS3=E**(2.*AA1*R12+2.*AA3*R32)*COS(RHO)**3*F3A13-E**
+     . (2.*AA1*R12+2.*AA3*R32)*COS(RHO)**2*F2A13-3.*E**(2.*
+     . AA1*R12+2.*AA3*R32)*COS(RHO)**2*F3A13-2.*E**(2.*AA1*
+     . R12+2.*AA3*R32)*COS(RHO)**2*F2A113-2.*E**(2.*AA1*R12
+     . +2.*AA3*R32)*COS(RHO)**2*F2A133+E**(2.*AA1*R12+2.*
+     . AA3*R32)*COS(RHO)*F1A13+2.*E**(2.*AA1*R12+2.*AA3*R32
+     . )*COS(RHO)*F2A13+3.*E**(2.*AA1*R12+2.*AA3*R32)*COS(
+     . RHO)*F3A13+2.*E**(2.*AA1*R12+2.*AA3*R32)*COS(RHO)*
+     . F1A113+4.*E**(2.*AA1*R12+2.*AA3*R32)*COS(RHO)*F2A113
+     . +2.*E**(2.*AA1*R12+2.*AA3*R32)*COS(RHO)*F1A133+4.*E
+     . **(2.*AA1*R12+2.*AA3*R32)*COS(RHO)*F2A133+3.*E**(2.*
+     . AA1*R12+2.*AA3*R32)*COS(RHO)*FA1113+3.*E**(2.*AA1*
+     . R12+2.*AA3*R32)*COS(RHO)*FA1333+4.*E**(2.*AA1*R12+2.
+     . *AA3*R32)*COS(RHO)*FA1133-E**(2.*AA1*R12+2.*AA3*R32)
+     . *F13-E**(2.*AA1*R12+2.*AA3*R32)*F1A13-E**(2.*AA1*R12
+     . +2.*AA3*R32)*F2A13-E**(2.*AA1*R12+2.*AA3*R32)*F3A13+
+     . ANS4
+      ANS2=E**(AA1*RE12+AA3*RE32)*AA1*AA3*ANS3
+      ANS1=ANS2/E**(3.*AA1*R12+3.*AA3*R32)
+      HOUT(1,2)=-ANS1
+      HOUT(2,1)=HOUT(1,2)
+C
+C
+      ANS7=-2.*E**(2.*AA1*R12+AA1*RE12+2.*AA3*R32+AA3*RE32)
+     . *F1A113-4.*E**(2.*AA1*R12+AA1*RE12+2.*AA3*R32+AA3*
+     . RE32)*F2A113-6.*E**(2.*AA1*R12+AA1*RE12+2.*AA3*R32+
+     . AA3*RE32)*FA1113-4.*E**(2.*AA1*R12+AA1*RE12+2.*AA3*
+     . R32+AA3*RE32)*FA1133+2.*E**(2.*AA1*R12+AA1*RE12+AA3*
+     . R32+2.*AA3*RE32)*FA1133+6.*E**(AA1*R12+2.*AA1*RE12+
+     . 3.*AA3*R32)*COS(RHO)*F2A111-3.*E**(AA1*R12+2.*AA1*
+     . RE12+3.*AA3*R32)*F1A111-6.*E**(AA1*R12+2.*AA1*RE12+
+     . 3.*AA3*R32)*F2A111-12.*E**(AA1*R12+2.*AA1*RE12+3.*AA3
+     . *R32)*FA1111-3.*E**(AA1*R12+2.*AA1*RE12+3.*AA3*R32)*
+     . FA1113+3.*E**(AA1*R12+2.*AA1*RE12+2.*AA3*R32+AA3*
+     . RE32)*FA1113+4.*E**(3.*AA1*RE12+3.*AA3*R32)*FA1111
+      ANS6=6.*E**(2.*AA1*R12+AA1*RE12+3.*AA3*R32)*COS(RHO)
+     . **2*F3A11-4.*E**(2.*AA1*R12+AA1*RE12+3.*AA3*R32)*COS
+     . (RHO)*F2A11-12.*E**(2.*AA1*R12+AA1*RE12+3.*AA3*R32)*
+     . COS(RHO)*F3A11-12.*E**(2.*AA1*R12+AA1*RE12+3.*AA3*
+     . R32)*COS(RHO)*F2A111-4.*E**(2.*AA1*R12+AA1*RE12+3.*
+     . AA3*R32)*COS(RHO)*F2A113+2.*E**(2.*AA1*R12+AA1*RE12+
+     . 3.*AA3*R32)*F1A11+4.*E**(2.*AA1*R12+AA1*RE12+3.*AA3*
+     . R32)*F2A11+6.*E**(2.*AA1*R12+AA1*RE12+3.*AA3*R32)*
+     . F3A11+6.*E**(2.*AA1*R12+AA1*RE12+3.*AA3*R32)*F1A111+
+     . 12.*E**(2.*AA1*R12+AA1*RE12+3.*AA3*R32)*F2A111+2.*E**
+     . (2.*AA1*R12+AA1*RE12+3.*AA3*R32)*F1A113+4.*E**(2.*
+     . AA1*R12+AA1*RE12+3.*AA3*R32)*F2A113+12.*E**(2.*AA1*
+     . R12+AA1*RE12+3.*AA3*R32)*FA1111+6.*E**(2.*AA1*R12+
+     . AA1*RE12+3.*AA3*R32)*FA1113+2.*E**(2.*AA1*R12+AA1*
+     . RE12+3.*AA3*R32)*FA1133+4.*E**(2.*AA1*R12+AA1*RE12+
+     . 2.*AA3*R32+AA3*RE32)*COS(RHO)*F2A113+ANS7
+      ANS5=-4.*E**(3.*AA1*R12+2.*AA3*R32+AA3*RE32)*COS(RHO)
+     . *F2A133+E**(3.*AA1*R12+2.*AA3*R32+AA3*RE32)*F1A13+2.
+     . *E**(3.*AA1*R12+2.*AA3*R32+AA3*RE32)*F2A13+3.*E**(3.
+     . *AA1*R12+2.*AA3*R32+AA3*RE32)*F3A13+2.*E**(3.*AA1*
+     . R12+2.*AA3*R32+AA3*RE32)*F1A113+4.*E**(3.*AA1*R12+2.
+     . *AA3*R32+AA3*RE32)*F2A113+2.*E**(3.*AA1*R12+2.*AA3*
+     . R32+AA3*RE32)*F1A133+4.*E**(3.*AA1*R12+2.*AA3*R32+
+     . AA3*RE32)*F2A133+3.*E**(3.*AA1*R12+2.*AA3*R32+AA3*
+     . RE32)*FA1113+3.*E**(3.*AA1*R12+2.*AA3*R32+AA3*RE32)*
+     . FA1333+4.*E**(3.*AA1*R12+2.*AA3*R32+AA3*RE32)*FA1133
+     . +2.*E**(3.*AA1*R12+AA3*R32+2.*AA3*RE32)*COS(RHO)*
+     . F2A133-E**(3.*AA1*R12+AA3*R32+2.*AA3*RE32)*F1A133-2.
+     . *E**(3.*AA1*R12+AA3*R32+2.*AA3*RE32)*F2A133-3.*E**(
+     . 3.*AA1*R12+AA3*R32+2.*AA3*RE32)*FA1333-2.*E**(3.*AA1*
+     . R12+AA3*R32+2.*AA3*RE32)*FA1133+E**(3.*AA1*R12+3.*
+     . AA3*RE32)*FA1333+ANS6
+      ANS4=-2.*E**(3.*AA1*R12+3.*AA3*R32)*F1A11-4.*E**(3.*
+     . AA1*R12+3.*AA3*R32)*F2A11-6.*E**(3.*AA1*R12+3.*AA3*
+     . R32)*F3A11-E**(3.*AA1*R12+3.*AA3*R32)*F1A13-2.*E**(
+     . 3.*AA1*R12+3.*AA3*R32)*F2A13-3.*E**(3.*AA1*R12+3.*AA3
+     . *R32)*F3A13-3.*E**(3.*AA1*R12+3.*AA3*R32)*F1A111-6.*
+     . E**(3.*AA1*R12+3.*AA3*R32)*F2A111-2.*E**(3.*AA1*R12+
+     . 3.*AA3*R32)*F1A113-4.*E**(3.*AA1*R12+3.*AA3*R32)*
+     . F2A113-E**(3.*AA1*R12+3.*AA3*R32)*F1A133-2.*E**(3.*
+     . AA1*R12+3.*AA3*R32)*F2A133-4.*E**(3.*AA1*R12+3.*AA3*
+     . R32)*FA1111-3.*E**(3.*AA1*R12+3.*AA3*R32)*FA1113-E**
+     . (3.*AA1*R12+3.*AA3*R32)*FA1333-2.*E**(3.*AA1*R12+3.*
+     . AA3*R32)*FA1133+3.*E**(3.*AA1*R12+2.*AA3*R32+AA3*
+     . RE32)*COS(RHO)**2*F3A13-2.*E**(3.*AA1*R12+2.*AA3*R32
+     . +AA3*RE32)*COS(RHO)*F2A13-6.*E**(3.*AA1*R12+2.*AA3*
+     . R32+AA3*RE32)*COS(RHO)*F3A13-4.*E**(3.*AA1*R12+2.*
+     . AA3*R32+AA3*RE32)*COS(RHO)*F2A113+ANS5
+      ANS3=4.*E**(3.*AA1*R12+3.*AA3*R32)*COS(RHO)**3*F4A1-
+     . 3.*E**(3.*AA1*R12+3.*AA3*R32)*COS(RHO)**2*F3A1-12.*E
+     . **(3.*AA1*R12+3.*AA3*R32)*COS(RHO)**2*F4A1-6.*E**(3.
+     . *AA1*R12+3.*AA3*R32)*COS(RHO)**2*F3A11-3.*E**(3.*AA1
+     . *R12+3.*AA3*R32)*COS(RHO)**2*F3A13+2.*E**(3.*AA1*R12
+     . +3.*AA3*R32)*COS(RHO)*F2A1+6.*E**(3.*AA1*R12+3.*AA3*
+     . R32)*COS(RHO)*F3A1+12.*E**(3.*AA1*R12+3.*AA3*R32)*
+     . COS(RHO)*F4A1+4.*E**(3.*AA1*R12+3.*AA3*R32)*COS(RHO)
+     . *F2A11+12.*E**(3.*AA1*R12+3.*AA3*R32)*COS(RHO)*F3A11
+     . +2.*E**(3.*AA1*R12+3.*AA3*R32)*COS(RHO)*F2A13+6.*E**
+     . (3.*AA1*R12+3.*AA3*R32)*COS(RHO)*F3A13+6.*E**(3.*AA1
+     . *R12+3.*AA3*R32)*COS(RHO)*F2A111+4.*E**(3.*AA1*R12+
+     . 3.*AA3*R32)*COS(RHO)*F2A113+2.*E**(3.*AA1*R12+3.*AA3*
+     . R32)*COS(RHO)*F2A133-E**(3.*AA1*R12+3.*AA3*R32)*F1A1
+     . -2.*E**(3.*AA1*R12+3.*AA3*R32)*F2A1-3.*E**(3.*AA1*
+     . R12+3.*AA3*R32)*F3A1-4.*E**(3.*AA1*R12+3.*AA3*R32)*
+     . F4A1+ANS4
+      ANS2=E**(AA1*RE12)*SIN(RHO)*AA1*ANS3
+      ANS1=ANS2/E**(4.*AA1*R12+3.*AA3*R32)
+      HOUT(1,3)=-ANS1
+      HOUT(3,1)=HOUT(1,3)
+C
+C
+      ANS7=-2.*E**(2.*AA1*R12+AA1*RE12+2.*AA3*R32+AA3*RE32)
+     . *F1A133-4.*E**(2.*AA1*R12+AA1*RE12+2.*AA3*R32+AA3*
+     . RE32)*F2A133-6.*E**(2.*AA1*R12+AA1*RE12+2.*AA3*R32+
+     . AA3*RE32)*FA1333-4.*E**(2.*AA1*R12+AA1*RE12+2.*AA3*
+     . R32+AA3*RE32)*FA1133+3.*E**(2.*AA1*R12+AA1*RE12+AA3*
+     . R32+2.*AA3*RE32)*FA1333+2.*E**(AA1*R12+2.*AA1*RE12+
+     . 3.*AA3*R32)*COS(RHO)*F2A113-E**(AA1*R12+2.*AA1*RE12+
+     . 3.*AA3*R32)*F1A113-2.*E**(AA1*R12+2.*AA1*RE12+3.*AA3*
+     . R32)*F2A113-3.*E**(AA1*R12+2.*AA1*RE12+3.*AA3*R32)*
+     . FA1113-2.*E**(AA1*R12+2.*AA1*RE12+3.*AA3*R32)*FA1133
+     . +2.*E**(AA1*R12+2.*AA1*RE12+2.*AA3*R32+AA3*RE32)*
+     . FA1133+E**(3.*AA1*RE12+3.*AA3*R32)*FA1113
+      ANS6=4.*E**(3.*AA1*R12+3.*AA3*RE32)*FA3333+3.*E**(2.*
+     . AA1*R12+AA1*RE12+3.*AA3*R32)*COS(RHO)**2*F3A13-2.*E
+     . **(2.*AA1*R12+AA1*RE12+3.*AA3*R32)*COS(RHO)*F2A13-6.
+     . *E**(2.*AA1*R12+AA1*RE12+3.*AA3*R32)*COS(RHO)*F3A13-
+     . 4.*E**(2.*AA1*R12+AA1*RE12+3.*AA3*R32)*COS(RHO)*
+     . F2A113-4.*E**(2.*AA1*R12+AA1*RE12+3.*AA3*R32)*COS(
+     . RHO)*F2A133+E**(2.*AA1*R12+AA1*RE12+3.*AA3*R32)*
+     . F1A13+2.*E**(2.*AA1*R12+AA1*RE12+3.*AA3*R32)*F2A13+
+     . 3.*E**(2.*AA1*R12+AA1*RE12+3.*AA3*R32)*F3A13+2.*E**(
+     . 2.*AA1*R12+AA1*RE12+3.*AA3*R32)*F1A113+4.*E**(2.*AA1*
+     . R12+AA1*RE12+3.*AA3*R32)*F2A113+2.*E**(2.*AA1*R12+
+     . AA1*RE12+3.*AA3*R32)*F1A133+4.*E**(2.*AA1*R12+AA1*
+     . RE12+3.*AA3*R32)*F2A133+3.*E**(2.*AA1*R12+AA1*RE12+
+     . 3.*AA3*R32)*FA1113+3.*E**(2.*AA1*R12+AA1*RE12+3.*AA3*
+     . R32)*FA1333+4.*E**(2.*AA1*R12+AA1*RE12+3.*AA3*R32)*
+     . FA1133+4.*E**(2.*AA1*R12+AA1*RE12+2.*AA3*R32+AA3*
+     . RE32)*COS(RHO)*F2A133+ANS7
+      ANS5=-12.*E**(3.*AA1*R12+2.*AA3*R32+AA3*RE32)*COS(RHO
+     . )*F2A333-4.*E**(3.*AA1*R12+2.*AA3*R32+AA3*RE32)*COS(
+     . RHO)*F2A133+2.*E**(3.*AA1*R12+2.*AA3*R32+AA3*RE32)*
+     . F1A33+4.*E**(3.*AA1*R12+2.*AA3*R32+AA3*RE32)*F2A33+
+     . 6.*E**(3.*AA1*R12+2.*AA3*R32+AA3*RE32)*F3A33+6.*E**(
+     . 3.*AA1*R12+2.*AA3*R32+AA3*RE32)*F1A333+12.*E**(3.*AA1
+     . *R12+2.*AA3*R32+AA3*RE32)*F2A333+2.*E**(3.*AA1*R12+
+     . 2.*AA3*R32+AA3*RE32)*F1A133+4.*E**(3.*AA1*R12+2.*AA3*
+     . R32+AA3*RE32)*F2A133+12.*E**(3.*AA1*R12+2.*AA3*R32+
+     . AA3*RE32)*FA3333+6.*E**(3.*AA1*R12+2.*AA3*R32+AA3*
+     . RE32)*FA1333+2.*E**(3.*AA1*R12+2.*AA3*R32+AA3*RE32)*
+     . FA1133+6.*E**(3.*AA1*R12+AA3*R32+2.*AA3*RE32)*COS(
+     . RHO)*F2A333-3.*E**(3.*AA1*R12+AA3*R32+2.*AA3*RE32)*
+     . F1A333-6.*E**(3.*AA1*R12+AA3*R32+2.*AA3*RE32)*F2A333
+     . -12.*E**(3.*AA1*R12+AA3*R32+2.*AA3*RE32)*FA3333-3.*E
+     . **(3.*AA1*R12+AA3*R32+2.*AA3*RE32)*FA1333+ANS6
+      ANS4=-2.*E**(3.*AA1*R12+3.*AA3*R32)*F1A33-4.*E**(3.*
+     . AA1*R12+3.*AA3*R32)*F2A33-6.*E**(3.*AA1*R12+3.*AA3*
+     . R32)*F3A33-E**(3.*AA1*R12+3.*AA3*R32)*F1A13-2.*E**(
+     . 3.*AA1*R12+3.*AA3*R32)*F2A13-3.*E**(3.*AA1*R12+3.*AA3
+     . *R32)*F3A13-3.*E**(3.*AA1*R12+3.*AA3*R32)*F1A333-6.*
+     . E**(3.*AA1*R12+3.*AA3*R32)*F2A333-E**(3.*AA1*R12+3.*
+     . AA3*R32)*F1A113-2.*E**(3.*AA1*R12+3.*AA3*R32)*F2A113
+     . -2.*E**(3.*AA1*R12+3.*AA3*R32)*F1A133-4.*E**(3.*AA1*
+     . R12+3.*AA3*R32)*F2A133-4.*E**(3.*AA1*R12+3.*AA3*R32)
+     . *FA3333-E**(3.*AA1*R12+3.*AA3*R32)*FA1113-3.*E**(3.*
+     . AA1*R12+3.*AA3*R32)*FA1333-2.*E**(3.*AA1*R12+3.*AA3*
+     . R32)*FA1133+6.*E**(3.*AA1*R12+2.*AA3*R32+AA3*RE32)*
+     . COS(RHO)**2*F3A33-4.*E**(3.*AA1*R12+2.*AA3*R32+AA3*
+     . RE32)*COS(RHO)*F2A33-12.*E**(3.*AA1*R12+2.*AA3*R32+
+     . AA3*RE32)*COS(RHO)*F3A33+ANS5
+      ANS3=4.*E**(3.*AA1*R12+3.*AA3*R32)*COS(RHO)**3*F4A3-
+     . 3.*E**(3.*AA1*R12+3.*AA3*R32)*COS(RHO)**2*F3A3-12.*E
+     . **(3.*AA1*R12+3.*AA3*R32)*COS(RHO)**2*F4A3-6.*E**(3.
+     . *AA1*R12+3.*AA3*R32)*COS(RHO)**2*F3A33-3.*E**(3.*AA1
+     . *R12+3.*AA3*R32)*COS(RHO)**2*F3A13+2.*E**(3.*AA1*R12
+     . +3.*AA3*R32)*COS(RHO)*F2A3+6.*E**(3.*AA1*R12+3.*AA3*
+     . R32)*COS(RHO)*F3A3+12.*E**(3.*AA1*R12+3.*AA3*R32)*
+     . COS(RHO)*F4A3+4.*E**(3.*AA1*R12+3.*AA3*R32)*COS(RHO)
+     . *F2A33+12.*E**(3.*AA1*R12+3.*AA3*R32)*COS(RHO)*F3A33
+     . +2.*E**(3.*AA1*R12+3.*AA3*R32)*COS(RHO)*F2A13+6.*E**
+     . (3.*AA1*R12+3.*AA3*R32)*COS(RHO)*F3A13+6.*E**(3.*AA1
+     . *R12+3.*AA3*R32)*COS(RHO)*F2A333+2.*E**(3.*AA1*R12+
+     . 3.*AA3*R32)*COS(RHO)*F2A113+4.*E**(3.*AA1*R12+3.*AA3*
+     . R32)*COS(RHO)*F2A133-E**(3.*AA1*R12+3.*AA3*R32)*F1A3
+     . -2.*E**(3.*AA1*R12+3.*AA3*R32)*F2A3-3.*E**(3.*AA1*
+     . R12+3.*AA3*R32)*F3A3-4.*E**(3.*AA1*R12+3.*AA3*R32)*
+     . F4A3+ANS4
+      ANS2=E**(AA3*RE32)*SIN(RHO)*AA3*ANS3
+      ANS1=ANS2/E**(3.*AA1*R12+4.*AA3*R32)
+      HOUT(2,3)=-ANS1
+      HOUT(3,2)=HOUT(2,3)
+      RETURN
+      END
+C
+C
+      SUBROUTINE SOLVEZ (X,IX,M,N,PREC,DET,TEST)
+      IMPLICIT REAL*8   (A-H,O-Z)
+C
+      INTEGER I1(255), I2(255)
+      REAL*8   X(3,3),T,DET,BIG,PREC,TEST,PIV,TEMP
+      EQUIVALENCE (BIG,TEMP,PIV)
+C
+C     INITIALIZATION
+C
+      DET = 1.E0
+      TEMP = ABS(PREC)
+      IF (TEMP .EQ. 0.E0)  TEMP = 0.5E-14
+      TEST = 0.E0
+      DO 1 I = 1,M
+      I2(I) = 0
+      DO 1 J = 1,M
+1     TEST = TEST + X(I,J) * X(I,J)
+      TEST = TEMP * SQRT(TEST) / M
+C
+C     SEARCH FOR NEXT PIVOT, AVOIDING ROWS AND COLUMNS WHICH ALREADY
+C     CONTAIN A PIVOT.
+C
+      DO 9 K = 1,M
+      BIG = 0.E0
+      DO 3 I = 1,M
+      IF (I2(I) .NE. 0) GO TO 3
+      DO 2 J = 1,M
+      IF (I2(J) .NE. 0) GO TO 2
+      T =ABS(X(I,J))
+      IF (T .LE. BIG) GO TO 2
+      BIG = T
+      IROW = I
+      JCOL = J
+2     CONTINUE
+3     CONTINUE
+      IF (BIG .LE. TEST) RETURN
+C
+C     RECORD POSITION OF PIVOT THEN MOVE PIVOTAL ROW SO PIVOT LIES ON
+C     THE DIAGONAL. SCALE PIVOTAL ROW.
+C
+      I1(K) = JCOL
+      I2(JCOL) = IROW
+      IF (JCOL .EQ. IROW) GO TO 6
+      DO 5 J = 1,N
+      TEMP = X(IROW,J)
+      X(IROW,J) = X(JCOL,J)
+5     X(JCOL,J) = TEMP
+      DET = -DET
+6     DET = DET * X(JCOL,JCOL)
+      PIV = 1.E0/X(JCOL,JCOL)
+      DO 7 J = 1,N
+      IF (J .NE. JCOL)  X(JCOL,J) = PIV * X(JCOL,J)
+7     CONTINUE
+      X(JCOL,JCOL) = PIV
+C
+C     ELIMINATE REMAINING ROWS.
+C
+      DO 9 I = 1,M
+      IF (I .EQ. JCOL)  GO TO 9
+      PIV = -X(I,JCOL)
+      DO 8 J = 1,N
+      IF (J .NE. JCOL)  X(I,J) = X(I,J) + PIV * X(JCOL,J)
+8     CONTINUE
+      X(I,JCOL) = PIV * X(JCOL,JCOL)
+9     CONTINUE
+C
+C     UNSCRAMBLE THE COLUMNS OF THE INVERSE ACCORDING TO THE ORIGINAL
+C     POSITIONS OF THE PIVOTS.
+C
+      DO 11 K = 1,M
+      I = M+1 - K
+      JCOL = I1(I)
+      IROW = I2(JCOL)
+      IF (IROW .EQ. JCOL)  GO TO 11
+      DO 10 I = 1,M
+      TEMP = X(I,IROW)
+      X(I,IROW) = X(I,JCOL)
+10    X(I,JCOL) = TEMP
+11    CONTINUE
+      TEST = 0.E0
+      RETURN
+      END

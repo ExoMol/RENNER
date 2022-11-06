@@ -1,0 +1,20 @@
+      INTEGER IOPT,
+     3        INT1V2,INT1NS,INT1ST,INT1SU,
+     4        INT2V2,INT2NS,INT2ST,INT2SU
+      REAL*8  XINLIM,TRTLIM,
+     1        FRQLO1,FRQHI1,
+     1        FRQLO2,FRQHI2,
+     1        FRQLO3,FRQHI3,
+     2        TEMPRA
+      INTEGER IGNS(2,10)
+      COMMON /INTPAR/
+     1                XINLIM,TRTLIM,
+     1                FRQLO1,FRQHI1,
+     1                FRQLO2,FRQHI2,
+     1                FRQLO3,FRQHI3,
+     2                TEMPRA,
+     3                IOPT,
+     3                INT1V2,INT1NS,INT1ST,INT1SU,
+     4                INT2V2,INT2NS,INT2ST,INT2SU,
+     5                IGNS
+
