@@ -1,5 +1,5 @@
 # RENNER
- [Prof. Per Jensen](https://www.uni-wuppertal.de/de/news/detail/bergische-universitaet-trauert-um-prof-per-jensen/)'s Rovibronic solver (Fortran) to a triatomic molecule for a system of two electronic states coupled with a Renner-Taylor interaction
+ [Prof. Per Jensen](https://www.uni-wuppertal.de/de/news/detail/bergische-universitaet-trauert-um-prof-per-jensen/)'s Rovibronic solver (Fortran) to a triatomic molecule for a system of two electronic states coupled with a Renner-Teller interaction
 
 See and cite [P. Jensen, M. Brumm, W.P. Kraemer, and P.R. Bunker, J. Mol. Spectrosc. 171, 31 (1995)](https://doi.org/10.1006/jmsp.1995.1101). 
 To compile, see a sample makefile in the makefile folder. 
